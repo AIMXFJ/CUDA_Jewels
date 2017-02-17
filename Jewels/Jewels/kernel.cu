@@ -44,6 +44,8 @@ int main() {
 	int anchura = 2;
 	int altura = 2;
 	int dificultad = 1;
+	int TILE_WIDTH = 16;
+
 	float *tablero;
 	bool jugando = true;
 
