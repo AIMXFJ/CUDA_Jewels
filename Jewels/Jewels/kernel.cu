@@ -4,7 +4,7 @@
 #include <cstdlib>
 
 //Función que llamara a la de CUDA para actualizar la matrz
-void deleteJewels(float *A, int width) {
+//void deleteJewels(float *A, int width) {
 	//int size = width*width * sizeof(float);
 	//float *A_d, *B_d, *C_d;
 
@@ -31,12 +31,51 @@ void deleteJewels(float *A, int width) {
 	cudaFree(A_d);
 	cudaFree(B_d);
 	cudaFree(C_d);*/
+//}
+
+void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura) {
+	for (int i = 0; i < altura*anchura; i++) {
+		switch (dificultad) {
+		case 1: {
+			int randJewel = rand() % 4 + 1;
+			tablero[i] = randJewel;
+			break;
+			}
+		case 2: {
+			int randJewel = rand() % 6 + 1;
+			tablero[i] = randJewel;
+			break;
+			}
+		case 3: {
+			int randJewel = rand() % 8 + 1;
+			tablero[i] = randJewel;
+			break;
+		}
+		}
+	}
 }
 
-void generacionInicialRandomJewels(float *tablero, int dificultad, int altura, int anchura) {
+void printTablero(float* tablero, int anchura, int altura) {
 	for (int i = 0; i < altura*anchura; i++) {
-
+		if (i%anchura == 0)
+			printf("\n");
+		printf("%d ",(int)tablero[i]);
 	}
+}
+
+//CUDA CPU Function
+void analisisTableroManual() {
+
+}
+
+//CUDA CPU Function
+void analisisTableroAutomatico() {
+
+}
+
+//CUDA CPU Function
+void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion) {
+	
 }
 
 int main() {
@@ -44,28 +83,64 @@ int main() {
 	int anchura = 2;
 	int altura = 2;
 	int dificultad = 1;
+	bool automatico = true;
 	int TILE_WIDTH = 16;
 
 	float *tablero;
 	bool jugando = true;
 
-	std::cout << "Altura del tablero: ";
-	std::cin >> altura;
-
 	std::cout << "Anchura del tablero: ";
 	std::cin >> anchura;
+
+	std::cout << "Altura del tablero: ";
+	std::cin >> altura;
 
 	std::cout << "Elija dificultad: \n1.-Facil \n2.-Media \n3.-Dificil";
 	std::cin >> dificultad;
 
+	int seleccion;
+	std::cout << "Automatico?   1.-SI   2.-NO";
+	std::cin >> seleccion;
+
+	switch (seleccion) {
+	case 1: automatico = true; break;
+	case 2: automatico = false; break;
+	default: printf("Valor no valido.\n"); return -1;
+	}
+
 	tablero = (float*)malloc(altura * anchura * sizeof(float));
 
 	//Se inicializa la matriz
-	generacionInicialRandomJewels(tablero, dificultad, altura, anchura);
-
+	generacionInicialRandomJewels(tablero, dificultad, anchura, altura);
 
 	//Bucle principal del juego
 	while (jugando) {
+		printTablero(tablero, anchura, altura);
+		analisisTablero();
+
+		int jewel1_x = 0;
+		int jewel1_y = 0;
+		std::cout << "Posicion de la primera jewel\n";
+		std::cout << "X: ";
+		std::cin >> jewel1_x;
+		std::cout << "Y: ";
+		std::cin >> jewel1_y;
+
+		if (!((jewel1_x < anchura) && (jewel1_x >= 0))) {
+			printf("Posicion erronea.\n");
+			continue;
+		}
+
+		int direccion = 0;
+		std::cout << "Direccion a seguir para intercambio de posiciones: \n 1.-Arriba\n 2.-Abajo\n 3.-Izquierda\n 4.-Derecha";
+		std::cin >> direccion;
+
+		if (direccion > 4 && direccion > 1) {
+			printf("Direccion erronea.\n");
+			continue;
+		}
+
+		intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion);
 
 	}
 
