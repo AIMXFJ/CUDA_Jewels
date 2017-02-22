@@ -33,6 +33,27 @@
 	cudaFree(C_d);*/
 //}
 
+//funcion para generar una jewel aleatoria, como la generacion inicial.
+int generarJewel(int dificultad) {
+	switch (dificultad) {
+	case 1: {
+		int randJewel = rand() % 4 + 1;
+		return randJewel;
+		break;
+	}
+	case 2: {
+		int randJewel = rand() % 6 + 1;
+		return randJewel;
+		break;
+	}
+	case 3: {
+		int randJewel = rand() % 8 + 1;
+		return randJewel;
+		break;
+	}
+	}
+}
+
 void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura) {
 	for (int i = 0; i < altura*anchura; i++) {
 		switch (dificultad) {
@@ -63,17 +84,52 @@ void printTablero(float* tablero, int anchura, int altura) {
 	}
 }
 
-//CUDA CPU Function
-void analisisTableroManual() {
+//Elimina las jewels recibidas, bajas las filas para rellenas, y genera arriba del todo jewels nuevas. TODO
+void eliminarJewels() {
 
 }
 
 //CUDA CPU Function
+void analisisTableroManual(int dificultad, float* tablero[], int anchura, int altura) {
+	float *tablero_d;
+	float *jewels_eliminadas_d;
+	int size = anchura * altura * sizeof(float);
+
+	//Solo se eliminan 3 jewels, 2 coordenadas por jewel = 6 posiciones en el array
+	float* jewels_eliminadas = (float*)malloc(6 * sizeof(float));
+
+	//Tablero a GPU
+	cudaMalloc((void**)&tablero_d, size);
+	cudaMemcpy(tablero_d, tablero, size, cudaMemcpyHostToDevice);
+
+	//Jewels a eliminar a GPU
+	cudaMalloc((void**)&jewels_eliminadas_d, 6 * sizeof(float));
+	cudaMemcpy(jewels_eliminadas_d, jewels_eliminadas, 6 * sizeof(float), cudaMemcpyHostToDevice);
+
+	//Configuracion de ejecucion, 1 hilo por bloque, tantos bloques como celdas
+	dim3 dimBlock(anchura, altura);
+	dim3 dimGrid(1, 1);
+
+	//Inicio del calculo, misma funcion de analisis en manual y automatico
+	//analisisTableroKernel << <dimGrid, dimBlock >> >(tablero_d, jewels_eliminadas_d, anchura, altura);
+
+	//Transfiere las jewels a eliminar de la GPU al host
+	cudaMemcpy(jewels_eliminadas, jewels_eliminadas_d, size, cudaMemcpyDeviceToHost);
+
+	//Se eliminan las jewels seleccionadas, se bajan las superiores y se generan nuevas
+	//eliminarJewels(tablero, jewels_eliminadas, anchura, altura);
+
+	//Libera memoria
+	cudaFree(tablero_d);
+	cudaFree(jewels_eliminadas_d);
+}
+
+//CUDA CPU Function.
 void analisisTableroAutomatico() {
 
 }
 
-//CUDA CPU Function
+//CUDA CPU Function. TODO
 void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion) {
 	
 }
@@ -116,17 +172,17 @@ int main() {
 	//Bucle principal del juego
 	while (jugando) {
 		printTablero(tablero, anchura, altura);
-		analisisTablero();
+		//analisisTableroManual();
 
 		int jewel1_x = 0;
 		int jewel1_y = 0;
-		std::cout << "Posicion de la primera jewel\n";
+		std::cout << "Posicion de la primera jewel (empiezan en 0)\n";
 		std::cout << "X: ";
 		std::cin >> jewel1_x;
 		std::cout << "Y: ";
 		std::cin >> jewel1_y;
 
-		if (!((jewel1_x < anchura) && (jewel1_x >= 0))) {
+		if (!((jewel1_x < anchura) && (jewel1_x >= 0) && (jewel1_y < altura) && (jewel1_y >= 0))) {
 			printf("Posicion erronea.\n");
 			continue;
 		}
