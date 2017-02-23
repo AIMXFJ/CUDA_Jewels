@@ -130,8 +130,68 @@ void analisisTableroAutomatico() {
 }
 
 //CUDA CPU Function. TODO
-void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion) {
-	
+void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura) {
+	int jewel2_x = jewel1_x;
+	int jewel2_y = jewel1_y;
+	switch (direccion) 
+	{
+		case 1: 
+		{
+			if (jewel1_y == 0)
+			{
+				jewel2_y = altura - 1;
+			}
+			else
+			{
+				jewel2_y = jewel1_x - 1;
+			}
+			break;
+		}
+		case 2:
+		{
+			if (jewel1_y == altura - 1 )
+			{
+				jewel2_y = 0;
+			}
+			else
+			{
+				jewel2_y = jewel1_y + 1;
+			}
+			break;
+		}
+		case 3:
+		{
+			if (jewel1_x == 0)
+			{
+				jewel2_x = anchura - 1;
+			}
+			else
+			{
+				jewel2_x = jewel1_x - 1;
+			}
+			break;
+		}
+		case 4:
+		{
+			if (jewel1_x == anchura - 1)
+			{
+				jewel2_x = 0;
+			}
+			else
+			{
+				jewel2_x = jewel1_x + 1;
+			}
+			break;
+		}
+	}
+
+	/* CPU mode */
+	int aux1;
+
+	aux1 = tablero[(jewel1_x + 1)*(jewel1_y + 1)];
+
+	tablero[(jewel1_x + 1)*(jewel1_y + 1)] = tablero[(jewel2_x + 1)*(jewel2_y + 1)];
+	tablero[(jewel2_x + 1)*(jewel2_y + 1)] = aux1;
 }
 
 int main() {
@@ -196,7 +256,7 @@ int main() {
 			continue;
 		}
 
-		intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion);
+		intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion,anchura,altura);
 
 	}
 
