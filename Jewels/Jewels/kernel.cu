@@ -89,6 +89,28 @@ void eliminarJewels() {
 
 }
 
+__global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas_d, int anchura, int altura) {
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+
+	if (tablero_d[tx + altura*ty] == tablero_d[tx+1 + altura*ty] && tablero_d[tx + altura*ty] == tablero_d[tx-1 + altura*ty) {
+		jewels_eliminadas_d[0] = tx-1;
+		jewels_eliminadas_d[1] = altura*ty;
+		jewels_eliminadas_d[2] = tx;
+		jewels_eliminadas_d[3] = altura*ty;
+		jewels_eliminadas_d[4] = tx + 1;
+		jewels_eliminadas_d[5] = altura*ty;
+	}
+	if (tablero_d[tx + altura*ty] == tablero_d[tx + altura*ty + 1] && tablero_d[tx + altura*ty] == tablero_d[tx + altura*ty - 1) {
+		jewels_eliminadas_d[0] = tx;
+		jewels_eliminadas_d[1] = altura*ty-1;
+		jewels_eliminadas_d[2] = tx;
+		jewels_eliminadas_d[3] = altura*ty;
+		jewels_eliminadas_d[4] = tx;
+		jewels_eliminadas_d[5] = altura*ty+1;
+	}
+}
+
 //CUDA CPU Function
 void analisisTableroManual(int dificultad, float* tablero[], int anchura, int altura) {
 	float *tablero_d;
@@ -111,7 +133,7 @@ void analisisTableroManual(int dificultad, float* tablero[], int anchura, int al
 	dim3 dimGrid(1, 1);
 
 	//Inicio del calculo, misma funcion de analisis en manual y automatico
-	//analisisTableroKernel << <dimGrid, dimBlock >> >(tablero_d, jewels_eliminadas_d, anchura, altura);
+	analisisTableroKernel <<<dimGrid, dimBlock>>>(tablero_d, jewels_eliminadas_d, anchura, altura);
 
 	//Transfiere las jewels a eliminar de la GPU al host
 	cudaMemcpy(jewels_eliminadas, jewels_eliminadas_d, size, cudaMemcpyDeviceToHost);
@@ -129,7 +151,7 @@ void analisisTableroAutomatico() {
 
 }
 
-//CUDA CPU Function. TODO
+//CUDA CPU Function.
 void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura) {
 	int jewel2_x = jewel1_x;
 	int jewel2_y = jewel1_y;
