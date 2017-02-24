@@ -85,7 +85,7 @@ void printTablero(float* tablero, int anchura, int altura) {
 }
 
 //Elimina las jewels recibidas, bajas las filas para rellenas, y genera arriba del todo jewels nuevas. TODO
-void eliminarJewels() {
+void eliminarJewels(float* tablero, float* jewels_eliminadas, int anchura, int altura) {
 
 }
 
@@ -93,7 +93,7 @@ __global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
 
-	if (tablero_d[tx + altura*ty] == tablero_d[tx+1 + altura*ty] && tablero_d[tx + altura*ty] == tablero_d[tx-1 + altura*ty) {
+	if (tablero_d[tx + altura*ty] == tablero_d[tx+1 + altura*ty] && tablero_d[tx + altura*ty] == tablero_d[tx-1 + altura*ty]) {
 		jewels_eliminadas_d[0] = tx-1;
 		jewels_eliminadas_d[1] = altura*ty;
 		jewels_eliminadas_d[2] = tx;
@@ -101,7 +101,8 @@ __global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas
 		jewels_eliminadas_d[4] = tx + 1;
 		jewels_eliminadas_d[5] = altura*ty;
 	}
-	if (tablero_d[tx + altura*ty] == tablero_d[tx + altura*ty + 1] && tablero_d[tx + altura*ty] == tablero_d[tx + altura*ty - 1) {
+
+	if (tablero_d[tx + altura*ty] == tablero_d[tx + altura*ty + 1] && tablero_d[tx + altura*ty] == tablero_d[tx + altura*ty - 1]) {
 		jewels_eliminadas_d[0] = tx;
 		jewels_eliminadas_d[1] = altura*ty-1;
 		jewels_eliminadas_d[2] = tx;
@@ -112,7 +113,7 @@ __global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas
 }
 
 //CUDA CPU Function
-void analisisTableroManual(int dificultad, float* tablero[], int anchura, int altura) {
+void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura) {
 	float *tablero_d;
 	float *jewels_eliminadas_d;
 	int size = anchura * altura * sizeof(float);
@@ -139,7 +140,7 @@ void analisisTableroManual(int dificultad, float* tablero[], int anchura, int al
 	cudaMemcpy(jewels_eliminadas, jewels_eliminadas_d, size, cudaMemcpyDeviceToHost);
 
 	//Se eliminan las jewels seleccionadas, se bajan las superiores y se generan nuevas
-	//eliminarJewels(tablero, jewels_eliminadas, anchura, altura);
+	eliminarJewels(tablero, jewels_eliminadas, anchura, altura);
 
 	//Libera memoria
 	cudaFree(tablero_d);
