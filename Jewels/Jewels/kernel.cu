@@ -77,11 +77,18 @@ void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, 
 }
 
 void printTablero(float* tablero, int anchura, int altura) {
-	for (int i = 0; i < altura*anchura; i++) {
+	for (int i = altura - 1; i >= 0; i--) {
+		for (int j = 0; j < anchura; j++) {
+			printf("%d ", (int)tablero[j+i*anchura]);
+		}
+		printf("\n");
+	}
+
+	/*for (int i = 0; i < anchura*altura; i++) {
 		if (i%anchura == 0)
 			printf("\n");
-		printf("%d ",(int)tablero[i]);
-	}
+		printf("%d ",(int)tablero[anchura*altura-i]);
+	}*/
 }
 
 __global__ void eliminarJewelsKernel(float* tablero_d, float* jewels_eliminadas_d,int dificultad, int anchura, int altura) {
@@ -251,10 +258,10 @@ void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int dire
 	}
 	int aux1;
 
-	aux1 = tablero[jewel2_x+jewel2_y*altura];
+	aux1 = tablero[jewel2_x+jewel2_y*anchura];
 
-	tablero[jewel2_x+jewel2_y*altura] = tablero[jewel1_x+jewel1_y*altura];
-	tablero[jewel1_x+jewel1_y*altura] = aux1;
+	tablero[jewel2_x+jewel2_y*anchura] = tablero[jewel1_x+jewel1_y*anchura];
+	tablero[jewel1_x+jewel1_y*anchura] = aux1;
 }
 
 int main() {
