@@ -211,18 +211,22 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 	cudaMemcpy(jewels_eliminadas, jewels_eliminadas_d, size, cudaMemcpyDeviceToHost);
 
 	//Se eliminan las jewels seleccionadas, se bajan las superiores y se generan nuevas
-	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
+	//eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
 
 	printTablero(tablero, anchura, altura);
 	printf("Pulse una tecla para continuar...");
-	getchar();
-	/*if (jewels_eliminadas[0] == -1) {
+	int relleno = 0;
+	std::cin >> relleno;
+	if (jewels_eliminadas[0] == -1) {
 		cudaFree(tablero_d);
 		cudaFree(jewels_eliminadas_d);
 
-		analisisTableroManual(dificultad, tablero, anchura, altura);
-	}*/
-
+		//analisisTableroManual(dificultad, tablero, anchura, altura);
+	}
+	else {
+		cudaFree(tablero_d);
+		cudaFree(jewels_eliminadas_d);
+	}
 }
 
 //CUDA CPU Function.
@@ -303,11 +307,11 @@ int main() {
 	while (jugando) {
 		printTablero(tablero, anchura, altura);
 
-		/*if (seleccion == 2)
+		if (seleccion == 2)
 			analisisTableroManual(dificultad, tablero, anchura, altura);
 		else
 			if (seleccion == 1)
-				analisisTableroAutomatico();*/
+				analisisTableroAutomatico();
 
 		int jewel1_x = 0;
 		int jewel1_y = 0;
