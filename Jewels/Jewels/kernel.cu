@@ -156,22 +156,30 @@ __global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
 
-	if (tablero_d[tx + anchura*ty] == tablero_d[tx+1 + anchura*ty] && tablero_d[tx + anchura*ty] == tablero_d[tx-1 + anchura*ty]) {
-		jewels_eliminadas_d[0] = tx-1;
-		jewels_eliminadas_d[1] = anchura*ty;
-		jewels_eliminadas_d[2] = tx;
-		jewels_eliminadas_d[3] = anchura*ty;
-		jewels_eliminadas_d[4] = tx + 1;
-		jewels_eliminadas_d[5] = anchura*ty;
+	printf("\ntx:%i ty:%i\n",tx,ty);
+
+	if (tx > 1 && tx < anchura - 1) {
+		if (tablero_d[tx + anchura*ty] == tablero_d[tx + 1 + anchura*ty] && tablero_d[tx + anchura*ty] == tablero_d[tx - 1 + anchura*ty]){
+			jewels_eliminadas_d[0] = tx - 1;
+			jewels_eliminadas_d[1] = anchura*ty;
+			jewels_eliminadas_d[2] = tx;
+			jewels_eliminadas_d[3] = anchura*ty;
+			jewels_eliminadas_d[4] = tx + 1;
+			jewels_eliminadas_d[5] = anchura*ty;
+			printf("\nJewels a eliminar horizontal: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], jewels_eliminadas_d[1]/anchura, jewels_eliminadas_d[2], jewels_eliminadas_d[3] / anchura, jewels_eliminadas_d[4], jewels_eliminadas_d[5] / anchura);
+		}
 	}
 
-	if (tablero_d[tx + anchura*ty] == tablero_d[tx + anchura*ty + 1] && tablero_d[tx + anchura*ty] == tablero_d[tx + anchura*ty - 1]) {
-		jewels_eliminadas_d[0] = tx;
-		jewels_eliminadas_d[1] = anchura*ty-1;
-		jewels_eliminadas_d[2] = tx;
-		jewels_eliminadas_d[3] = anchura*ty;
-		jewels_eliminadas_d[4] = tx;
-		jewels_eliminadas_d[5] = anchura*ty+1;
+	if (ty > 1 && ty < altura - 1) {
+		if (tablero_d[tx + anchura*ty] == tablero_d[tx + anchura*ty + 1] && tablero_d[tx + anchura*ty] == tablero_d[tx + anchura*ty - 1]) {
+			jewels_eliminadas_d[0] = tx;
+			jewels_eliminadas_d[1] = anchura*(ty - 1);
+			jewels_eliminadas_d[2] = tx;
+			jewels_eliminadas_d[3] = anchura*ty;
+			jewels_eliminadas_d[4] = tx;
+			jewels_eliminadas_d[5] = anchura*(ty + 1);
+			printf("\nJewels a eliminar vertical: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], jewels_eliminadas_d[1]/ anchura, jewels_eliminadas_d[2], jewels_eliminadas_d[3] / anchura, jewels_eliminadas_d[4], jewels_eliminadas_d[5] / anchura);
+		}
 	}
 }
 
@@ -206,26 +214,30 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 
 	//Inicio del calculo, misma funcion de analisis en manual y automatico
 	analisisTableroKernel <<<dimGrid, dimBlock>>>(tablero_d, jewels_eliminadas_d, dificultad, anchura, altura);
+	printf("\nSali!\n");
 
 	//Transfiere las jewels a eliminar de la GPU al host
-	cudaMemcpy(jewels_eliminadas, jewels_eliminadas_d, size, cudaMemcpyDeviceToHost);
-
-	//Se eliminan las jewels seleccionadas, se bajan las superiores y se generan nuevas
-	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
+	cudaMemcpy(jewels_eliminadas, jewels_eliminadas_d, max*sizeof(float), cudaMemcpyDeviceToHost);
 
 	printTablero(tablero, anchura, altura);
 	printf("Pulse una tecla para continuar...");
 	int relleno = 0;
 	std::cin >> relleno;
 	if (jewels_eliminadas[0] == -1) {
+		//Se eliminan las jewels seleccionadas, se bajan las superiores y se generan nuevas
+		//eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
+
 		cudaFree(tablero_d);
 		cudaFree(jewels_eliminadas_d);
 
+		printf("\nJewels a eliminar: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas[0], jewels_eliminadas[1], jewels_eliminadas[2], jewels_eliminadas[3], jewels_eliminadas[4], jewels_eliminadas[5]);
 		analisisTableroManual(dificultad, tablero, anchura, altura);
 	}
 	else {
 		cudaFree(tablero_d);
 		cudaFree(jewels_eliminadas_d);
+
+		printf("\nJewels a eliminar: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas[0], jewels_eliminadas[1], jewels_eliminadas[2], jewels_eliminadas[3], jewels_eliminadas[4], jewels_eliminadas[5]);
 	}
 }
 
