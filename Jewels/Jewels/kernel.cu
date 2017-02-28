@@ -78,17 +78,12 @@ void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, 
 
 void printTablero(float* tablero, int anchura, int altura) {
 	for (int i = altura - 1; i >= 0; i--) {
+		printf("\n");
 		for (int j = 0; j < anchura; j++) {
 			printf("%d ", (int)tablero[j+i*anchura]);
 		}
-		printf("\n");
 	}
-
-	/*for (int i = 0; i < anchura*altura; i++) {
-		if (i%anchura == 0)
-			printf("\n");
-		printf("%d ",(int)tablero[anchura*altura-i]);
-	}*/
+	printf("\n");
 }
 
 __global__ void eliminarJewelsKernel(float* tablero_d, float* jewels_eliminadas_d,int dificultad, int anchura, int altura) {
@@ -98,11 +93,11 @@ __global__ void eliminarJewelsKernel(float* tablero_d, float* jewels_eliminadas_
 
 	if (altura >= anchura) max = altura;
 	else max = anchura;
+	//printf("\nJewels a eliminar horizontal: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], jewels_eliminadas_d[1] / anchura, jewels_eliminadas_d[2], jewels_eliminadas_d[3] / anchura, jewels_eliminadas_d[4], jewels_eliminadas_d[5] / anchura);
 
-	for (int i = 0; i < max; i+2) {
-		//La jewel esta en la columna de la que hay que eliminar, sin ser esta ultima
-		if ((tx == jewels_eliminadas_d[i]) && (ty * anchura) > (jewels_eliminadas_d[i+1])) {
-			tablero_d[tx + ty*(anchura - 1)] = tablero_d[tx + ty*anchura];
+	for (int i = 0; i < max; i++) {
+		if ((tx == jewels_eliminadas_d[i]) && (ty * anchura) >(jewels_eliminadas_d[i + 1])) {
+			tablero_d[tx + (ty - 1)*(anchura)] = tablero_d[tx + ty*anchura];
 		}
 
 		if (ty == altura) {
@@ -113,6 +108,7 @@ __global__ void eliminarJewelsKernel(float* tablero_d, float* jewels_eliminadas_
 
 			tablero_d[tx + ty*anchura] = curand_uniform(&state);
 		}
+		i++;
 	}
 }
 
@@ -125,9 +121,6 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas,int dificultad, int
 
 	if (altura >= anchura) max = altura;
 	else max = anchura;
-
-	//Solo se eliminan 3 jewels, 2 coordenadas por jewel = 6 posiciones en el array
-	jewels_eliminadas = (float*)malloc(max * sizeof(float));
 
 	//Tablero a GPU
 	cudaMalloc((void**)&tablero_d, size);
@@ -145,7 +138,7 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas,int dificultad, int
 	eliminarJewelsKernel <<<dimGrid, dimBlock >>>(tablero_d, jewels_eliminadas_d, dificultad, anchura, altura);
 
 	//Transfiere las jewels a eliminar de la GPU al host
-	cudaMemcpy(jewels_eliminadas, jewels_eliminadas_d, size, cudaMemcpyDeviceToHost);
+	cudaMemcpy(tablero, tablero_d, size, cudaMemcpyDeviceToHost);
 
 	//Libera memoria
 	cudaFree(tablero_d);
@@ -156,7 +149,7 @@ __global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
 
-	printf("\ntx:%i ty:%i\n",tx,ty);
+	//printf("\ntx:%i ty:%i\n",tx,ty);
 
 	if (tx > 1 && tx < anchura - 1) {
 		if (tablero_d[tx + anchura*ty] == tablero_d[tx + 1 + anchura*ty] && tablero_d[tx + anchura*ty] == tablero_d[tx - 1 + anchura*ty]){
@@ -166,19 +159,20 @@ __global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas
 			jewels_eliminadas_d[3] = anchura*ty;
 			jewels_eliminadas_d[4] = tx + 1;
 			jewels_eliminadas_d[5] = anchura*ty;
-			printf("\nJewels a eliminar horizontal: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], jewels_eliminadas_d[1]/anchura, jewels_eliminadas_d[2], jewels_eliminadas_d[3] / anchura, jewels_eliminadas_d[4], jewels_eliminadas_d[5] / anchura);
+			//printf("\nJewels a eliminar horizontal: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], jewels_eliminadas_d[1]/anchura, jewels_eliminadas_d[2], jewels_eliminadas_d[3] / anchura, jewels_eliminadas_d[4], jewels_eliminadas_d[5] / anchura);
 		}
 	}
 
 	if (ty > 1 && ty < altura - 1) {
-		if (tablero_d[tx + anchura*ty] == tablero_d[tx + anchura*ty + 1] && tablero_d[tx + anchura*ty] == tablero_d[tx + anchura*ty - 1]) {
+		if (tablero_d[tx + anchura*ty] == tablero_d[tx + anchura*(ty + 1)] && tablero_d[tx + anchura*ty] == tablero_d[tx + anchura*(ty - 1)]) {
 			jewels_eliminadas_d[0] = tx;
 			jewels_eliminadas_d[1] = anchura*(ty - 1);
 			jewels_eliminadas_d[2] = tx;
 			jewels_eliminadas_d[3] = anchura*ty;
 			jewels_eliminadas_d[4] = tx;
 			jewels_eliminadas_d[5] = anchura*(ty + 1);
-			printf("\nJewels a eliminar vertical: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], jewels_eliminadas_d[1]/ anchura, jewels_eliminadas_d[2], jewels_eliminadas_d[3] / anchura, jewels_eliminadas_d[4], jewels_eliminadas_d[5] / anchura);
+			//printf("\nty: %i\n",ty);
+			//printf("\nJewels a eliminar vertical: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], (jewels_eliminadas_d[1]/ anchura), jewels_eliminadas_d[2], jewels_eliminadas_d[3] / anchura, jewels_eliminadas_d[4], (jewels_eliminadas_d[5] / anchura));
 		}
 	}
 }
@@ -223,21 +217,21 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 	printf("Pulse una tecla para continuar...");
 	int relleno = 0;
 	std::cin >> relleno;
-	if (jewels_eliminadas[0] == -1) {
+	if (jewels_eliminadas[0] == -1 && jewels_eliminadas[1]==-1) {
 		//Se eliminan las jewels seleccionadas, se bajan las superiores y se generan nuevas
-		//eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
-
 		cudaFree(tablero_d);
 		cudaFree(jewels_eliminadas_d);
 
-		printf("\nJewels a eliminar: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas[0], jewels_eliminadas[1], jewels_eliminadas[2], jewels_eliminadas[3], jewels_eliminadas[4], jewels_eliminadas[5]);
+		//printf("\nJewels a eliminar: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas[0], jewels_eliminadas[1]/anchura, jewels_eliminadas[2], jewels_eliminadas[3]/anchura, jewels_eliminadas[4], jewels_eliminadas[5]/anchura);
 		analisisTableroManual(dificultad, tablero, anchura, altura);
 	}
 	else {
 		cudaFree(tablero_d);
 		cudaFree(jewels_eliminadas_d);
 
-		printf("\nJewels a eliminar: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas[0], jewels_eliminadas[1], jewels_eliminadas[2], jewels_eliminadas[3], jewels_eliminadas[4], jewels_eliminadas[5]);
+		//printf("\nJewels a eliminar: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas[0], jewels_eliminadas[1]/anchura, jewels_eliminadas[2], jewels_eliminadas[3]/anchura, jewels_eliminadas[4], jewels_eliminadas[5]/anchura);
+		eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
+		printTablero(tablero, anchura, altura);
 	}
 }
 
@@ -305,9 +299,9 @@ int main() {
 	std::cin >> seleccion;
 
 	switch (seleccion) {
-	case 1: automatico = true; break;
-	case 2: automatico = false; break;
-	default: printf("Valor no valido.\n"); return -1;
+		case 1: automatico = true; break;
+		case 2: automatico = false; break;
+		default: printf("Valor no valido.\n"); return -1;
 	}
 
 	tablero = (float*)malloc(altura * anchura * sizeof(float));
@@ -317,7 +311,6 @@ int main() {
 
 	//Bucle principal del juego
 	while (jugando) {
-		printTablero(tablero, anchura, altura);
 
 		if (seleccion == 2)
 			analisisTableroManual(dificultad, tablero, anchura, altura);
@@ -327,92 +320,136 @@ int main() {
 
 		int jewel1_x = 0;
 		int jewel1_y = 0;
-		std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
-		std::cout << "X: ";
-		std::cin >> jewel1_x;
-		std::cout << "Y: ";
-		std::cin >> jewel1_y;
+		int accion = 0;
 
-		if (!((jewel1_x < anchura) && (jewel1_x >= 0) && (jewel1_y < altura) && (jewel1_y >= 0))) {
-			printf("Posicion erronea.\n");
-			continue;
-		}
+		std::cout << "Acción a realizar:";
+		std::cout << "(1) Intercambiar Jewels";
+		std::cout << "(2) Usar una Bomba";
 
-		int direccion = 0;
-		std::cout << "Direccion a seguir para intercambio de posiciones: \n 1.-Arriba\n 2.-Abajo\n 3.-Izquierda\n 4.-Derecha";
-		std::cin >> direccion;
+		std::cin >> accion;
 
-		if (direccion > 4 && direccion > 1) {
-			printf("Direccion erronea.\n");
-			continue;
-		}
-		else {
-			switch (direccion)
-			{
-			case 1: //Arriba
-			{
-				if (jewel1_y == altura)
+		if(accion == 1){
+			std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
+			std::cout << "X: ";
+			std::cin >> jewel1_x;
+			std::cout << "Y: ";
+			std::cin >> jewel1_y;
+
+			if (!((jewel1_x < anchura) && (jewel1_x >= 0) && (jewel1_y < altura) && (jewel1_y >= 0))) {
+				printf("Posicion erronea.\n");
+				continue;
+			}
+
+			int direccion = 0;
+			std::cout << "Direccion a seguir para intercambio de posiciones: \n 1.-Arriba\n 2.-Abajo\n 3.-Izquierda\n 4.-Derecha";
+			std::cin >> direccion;
+
+			if (direccion > 4 && direccion > 1) {
+				printf("Direccion erronea.\n");
+				continue;
+			}
+			else {
+				switch (direccion)
 				{
-					printf("No se puede realizar el intercambio especificado.\n");
+				case 1: //Arriba
+				{
+					if (jewel1_y == altura)
+					{
+						printf("No se puede realizar el intercambio especificado.\n");
+						continue;
+					}
+					break;
+				}
+				case 2: //Abajo
+				{
+					if (jewel1_y == 0)
+					{
+						printf("No se puede realizar el intercambio especificado.\n");
+						continue;
+					}
+					break;
+				}
+				case 3: //Izquierda
+				{
+					if (jewel1_x == 0)
+					{
+						printf("No se puede realizar el intercambio especificado.\n");
+						continue;
+					}
+					break;
+				}
+				case 4: //Derecha
+				{
+					if (jewel1_x == anchura - 1)
+					{
+						printf("No se puede realizar el intercambio especificado.\n");
+						continue;
+					}
+					break;
+				}
+				}
+
+				intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura);
+			}
+
+		}else {
+			int bomba = 0;
+
+			std::cout << "Elija una bomba:";
+
+			switch (dificultad) {
+				case 1: {
+					std::cout << "(1) Bomba de fila";
+					break;
+				}
+				case 2: {
+					std::cout << "(1) Bomba de fila";
+					std::cout << "(2) Bomba de columna";
+					break;
+				}
+				case 3: {
+					std::cout << "(1) Bomba de fila";
+					std::cout << "(2) Bomba de columna";
+					std::cout << "(3) Bomba de rotacion 3x3 (la jewel elegida es el centro)";
+					break;
+				}
+			}
+
+			std::cin >> bomba;
+
+			switch (dificultad)
+			{
+			case 1:
+			{
+				if (bomba != 1)
+				{
+					printf("Bomba erronea.\n");
 					continue;
 				}
 				break;
 			}
-			case 2: //Abajo
+			case 2:
 			{
-				if (jewel1_y == 0)
+				if (bomba < 1 && bomba > 2)
 				{
-					printf("No se puede realizar el intercambio especificado.\n");
+					printf("Bomba erronea.\n");
 					continue;
 				}
 				break;
 			}
-			case 3: //Izquierda
+			case 3:
 			{
-				if (jewel1_x == 0)
+				if (bomba < 1 && bomba > 3)
 				{
-					printf("No se puede realizar el intercambio especificado.\n");
-					continue;
-				}
-				break;
-			}
-			case 4: //Derecha
-			{
-				if (jewel1_x == anchura - 1)
-				{
-					printf("No se puede realizar el intercambio especificado.\n");
+					printf("Bomba erronea.\n");
 					continue;
 				}
 				break;
 			}
 			}
 
-			intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura);
-
+			//LLAMADA A LA FUNCION DE EJECUTAR BOMBA//
 		}
-
-		/*const int width = 3;
-		float A[width*width], B[width*width], C[width*width];
-		for (int i = 0; i < (width*width); i++) {
-			int valor = 0;
-			std::cout << "Valor en A (de izquierda a derecha, por filas): ";
-			std::cin >> valor;
-			A[i] = valor;
-			valor = 0;
-			std::cout << "Valor en B (de izquierda a derecha, por filas): ";
-			std::cin >> valor;
-			B[i] = valor;
-			C[i] = 0;
-		}
-		MatrixMultiplication(A, B, C, width);
-		printf("Solucion: \n");
-		for (int i = 0; i < (width*width); i++) {
-			if (i%width == 0) { printf("\n"); }
-			printf("%f ", C[i]);
-		}
-
-		int exit;
-		scanf("%d", &exit);*/
 	}
 	return 0;
 }
