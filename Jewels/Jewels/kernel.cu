@@ -177,8 +177,107 @@ __global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas
 	}
 }
 
+//Funcion CPU
+void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura, int x, int y) {
+	int max = 0;
+	int size = anchura*altura;
+
+	if (altura >= anchura) max = altura;
+	else max = anchura;
+
+	//Solo se eliminan MAX jewels como mucho, se guardan sus x e y
+	float* jewels_eliminadas = (float*)malloc(2 * max * sizeof(float));
+
+	for (int i = 0; i < max; i++) {
+		jewels_eliminadas[i] = -1;
+	}
+
+	//Tiene posibles eliminables por la derecha o izquierda
+	if (((x-1+y*anchura>=0)&&tablero[x - 1 + y*anchura] == tablero[x + y*anchura]) || ((x+1+y*anchura<=size)&&tablero[x + 1 + y*anchura] == tablero[x + y*anchura])) {
+		int jewels_posibles_izq = 0;
+		int jewels_posibles_der = 0;
+
+		//Si tiene por la izquierda
+		if ((x - 1 + y*anchura >= 0) && tablero[x - 1 + y*anchura] == tablero[x + y*anchura]) {
+			int i = 1;
+			while ((x - i + y*anchura >= 0) && tablero[x - i + y*anchura] == tablero[x + y*anchura]) {
+				jewels_posibles_izq++;
+				i++;
+			}
+		}
+
+		//Si tiene por la derecha
+		if ((x + 1 + y*anchura <= size) && tablero[x + 1 + y*anchura] == tablero[x + y*anchura]) {
+			int i = 1;
+			while ((x + i+ y*anchura <= size) && tablero[x + i + y*anchura] == tablero[x + y*anchura]) {
+				jewels_posibles_der++;
+				i++;
+			}
+		}
+
+		//Se pueden eliminar
+		if (1 + jewels_posibles_izq + jewels_posibles_der >= 3) {
+			int salto = 0;
+
+			for (int j = 0; j <= (jewels_posibles_izq + 1);j++) {
+				jewels_eliminadas[salto]=x-j;
+				jewels_eliminadas[salto + 1]=y;
+				salto += 2;
+			}
+
+			salto = 0;
+			for (int k = 1; k <= jewels_posibles_der; k++) {
+				jewels_eliminadas[salto + 1 + jewels_posibles_izq] = x + k;
+				jewels_eliminadas[salto + 1 + jewels_posibles_izq+1] = y;
+				salto += 2;
+			}
+		}
+	} else {
+		int jewels_posibles_arrib = 0;
+		int jewels_posibles_abaj = 0;
+
+		//Si tiene por abajo
+		if ((x + (y-1)*anchura >= 0) && tablero[x + (y-1)*anchura] == tablero[x + y*anchura]) {
+			int i = 1;
+			while ((x + (y-i)*anchura >= 0) && tablero[x + (y-i)*anchura] == tablero[x + y*anchura]) {
+				jewels_posibles_abaj++;
+				i++;
+			}
+		}
+
+		//Si tiene por arriba
+		if ((x + 1 + y*anchura <= size) && tablero[x + 1 + y*anchura] == tablero[x + y*anchura]) {
+			int i = 1;
+			while ((x + (y+i)*anchura <= size) && tablero[x + (y+i)*anchura] == tablero[x + y*anchura]) {
+				jewels_posibles_arrib++;
+				i++;
+			}
+		}
+
+		//Se pueden eliminar
+		if (1 + jewels_posibles_abaj + jewels_posibles_arrib >= 3) {
+			int salto = 0;
+
+			for (int j = 0; j <= (jewels_posibles_abaj + 1); j++) {
+				jewels_eliminadas[salto] = x;
+				jewels_eliminadas[salto + 1] = y - j;
+				salto += 2;
+			}
+
+			salto = 0;
+			for (int k = 1; k <= jewels_posibles_arrib; k++) {
+				jewels_eliminadas[salto + 1 + jewels_posibles_abaj] = x;
+				jewels_eliminadas[salto + 1 + jewels_posibles_abaj + 1] = y + k;
+				salto += 2;
+			}
+		}
+	}
+
+	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
+}
+
 //CUDA CPU Function
-void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura) {
+/*void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura) {
 	float *tablero_d;
 	float *jewels_eliminadas_d;
 	int size = anchura * altura * sizeof(float);
@@ -233,11 +332,64 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 		eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
 		printTablero(tablero, anchura, altura);
 	}
-}
+}*/
 
-//CUDA CPU Function.
-void analisisTableroAutomatico() {
+//CUDA CPU Function. Analiza la mejor opcion y la ejecuta
+void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int altura) {
+	float *tablero_d;
+	float *jewels_eliminadas_d;
+	int size = anchura * altura * sizeof(float);
+	int max = 0;
 
+	if (altura >= anchura) max = altura;
+	else max = anchura;
+
+	//Solo se eliminan 3 jewels, 2 coordenadas por jewel = 6 posiciones en el array
+	float* jewels_eliminadas = (float*)malloc(max * sizeof(float));
+
+	for (int i = 0; i < max; i++) {
+		jewels_eliminadas[i] = -1;
+	}
+
+	//Tablero a GPU
+	cudaMalloc((void**)&tablero_d, size);
+	cudaMemcpy(tablero_d, tablero, size, cudaMemcpyHostToDevice);
+
+	//Jewels a eliminar a GPU
+	cudaMalloc((void**)&jewels_eliminadas_d, max * sizeof(float));
+	cudaMemcpy(jewels_eliminadas_d, jewels_eliminadas, max * sizeof(float), cudaMemcpyHostToDevice);
+
+	//Configuracion de ejecucion, 1 hilo por bloque, tantos bloques como celdas
+	dim3 dimBlock(anchura, altura);
+	dim3 dimGrid(1, 1);
+
+	//Inicio del calculo, misma funcion de analisis en manual y automatico
+	analisisTableroKernel << <dimGrid, dimBlock >> >(tablero_d, jewels_eliminadas_d, dificultad, anchura, altura);
+	printf("\nSali!\n");
+
+	//Transfiere las jewels a eliminar de la GPU al host
+	cudaMemcpy(jewels_eliminadas, jewels_eliminadas_d, max * sizeof(float), cudaMemcpyDeviceToHost);
+
+	printTablero(tablero, anchura, altura);
+	printf("Pulse una tecla para continuar...");
+	int relleno = 0;
+	std::cin >> relleno;
+	if (jewels_eliminadas[0] == -1 && jewels_eliminadas[1] == -1) {
+		//Se eliminan las jewels seleccionadas, se bajan las superiores y se generan nuevas
+		cudaFree(tablero_d);
+		cudaFree(jewels_eliminadas_d);
+
+		//printf("\nJewels a eliminar: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas[0], jewels_eliminadas[1]/anchura, jewels_eliminadas[2], jewels_eliminadas[3]/anchura, jewels_eliminadas[4], jewels_eliminadas[5]/anchura);
+		analisisTableroAutomatico(dificultad, tablero, anchura, altura);
+	}
+	else {
+		cudaFree(tablero_d);
+		cudaFree(jewels_eliminadas_d);
+
+		//printf("\nJewels a eliminar: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas[0], jewels_eliminadas[1]/anchura, jewels_eliminadas[2], jewels_eliminadas[3]/anchura, jewels_eliminadas[4], jewels_eliminadas[5]/anchura);
+		eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
+		printTablero(tablero, anchura, altura);
+	}
 }
 
 void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura) {
