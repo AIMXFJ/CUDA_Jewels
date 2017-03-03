@@ -52,6 +52,7 @@ int generarJewel(int dificultad) {
 		return randJewel;
 	}
 	}
+	return -1;
 }
 
 void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura) {
@@ -84,6 +85,33 @@ void printTablero(float* tablero, int anchura, int altura) {
 		}
 	}
 	printf("\n");
+}
+
+void eliminarJewelsKernel(float* tablero, float* jewels_eliminadas, int dificultad, int anchura, int altura) {
+	int max = 0;
+
+	if (altura >= anchura) max = altura;
+	else max = anchura;
+	//printf("\nJewels a eliminar horizontal: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], jewels_eliminadas_d[1] / anchura, jewels_eliminadas_d[2], jewels_eliminadas_d[3] / anchura, jewels_eliminadas_d[4], jewels_eliminadas_d[5] / anchura);
+	for (int y = 0; y < altura; y++) {
+		for (int x = 0; x < anchura; x++) {
+			for (int i = 0; i < max; i++) {
+				if ((x == jewels_eliminadas[i]) && (y * anchura) > (jewels_eliminadas[i + 1])) {
+					tablero[x + (y - 1)*(anchura)] = tablero[x + y*anchura];
+				}
+
+				if (y == altura) {
+					//Generar jewel random
+					curandState state;
+
+					curand_init((unsigned long long)clock(), i, 0, &state);
+
+					tablero[x + y*anchura] = curand_uniform(&state);
+				}
+				i++;
+			}
+		}
+	}
 }
 
 __global__ void eliminarJewelsKernel(float* tablero_d, float* jewels_eliminadas_d,int dificultad, int anchura, int altura) {
@@ -145,7 +173,7 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas,int dificultad, int
 	cudaFree(jewels_eliminadas_d);
 }
 
-__global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas_d, int dificultad, int anchura, int altura) {
+/*__global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas_d, int dificultad, int anchura, int altura) {
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
 
@@ -175,7 +203,7 @@ __global__ void analisisTableroKernel(float *tablero_d, float *jewels_eliminadas
 			//printf("\nJewels a eliminar vertical: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], (jewels_eliminadas_d[1]/ anchura), jewels_eliminadas_d[2], jewels_eliminadas_d[3] / anchura, jewels_eliminadas_d[4], (jewels_eliminadas_d[5] / anchura));
 		}
 	}
-}
+}*/
 
 //Funcion CPU
 void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura, int x, int y) {
@@ -272,8 +300,9 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 			}
 		}
 	}
-
-	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
+	
+	if(jewels_eliminadas[0]!=-1)
+		eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
 }
 
 //CUDA CPU Function
@@ -370,10 +399,6 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	//Transfiere las jewels a eliminar de la GPU al host
 	cudaMemcpy(jewels_eliminadas, jewels_eliminadas_d, max * sizeof(float), cudaMemcpyDeviceToHost);
 
-	printTablero(tablero, anchura, altura);
-	printf("Pulse una tecla para continuar...");
-	int relleno = 0;
-	std::cin >> relleno;
 	if (jewels_eliminadas[0] == -1 && jewels_eliminadas[1] == -1) {
 		//Se eliminan las jewels seleccionadas, se bajan las superiores y se generan nuevas
 		cudaFree(tablero_d);
@@ -464,11 +489,7 @@ int main() {
 	//Bucle principal del juego
 	while (jugando) {
 
-		if (seleccion == 2)
-			analisisTableroManual(dificultad, tablero, anchura, altura);
-		else
-			if (seleccion == 1)
-				analisisTableroAutomatico();
+		printTablero(tablero, anchura, altura);
 
 		int jewel1_x = 0;
 		int jewel1_y = 0;
@@ -542,6 +563,11 @@ int main() {
 				}
 
 				intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura);
+				if (seleccion == 2)
+					analisisTableroManual(dificultad, tablero, anchura, altura,jewel1_x,jewel1_y);
+				else
+					if (seleccion == 1)
+						analisisTableroAutomatico(dificultad, tablero, anchura, altura);
 			}
 
 		}else {
