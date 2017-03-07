@@ -516,7 +516,7 @@ void cargar(int anchura, int altura, float*  tablero, char* fichero)
 	fCarga.getline(array, (anchura*altura + 1 + 3));
 	for (int i = 0; i < anchura*altura; i++)
 	{
-		tablero[i] = array[i + 3];
+		tablero[i] = array[i + 3] - 48;
 	}
 	free(array);
 	fCarga.close();
@@ -540,6 +540,68 @@ void guardado(float* tablero, int anchura, int altura, int dificultad, char* fic
 	ficheroGuardado.close();
 }
 
+void bombaFila(float* tablero,int anchura,int altura,int dificultad, int fila) {
+	
+	for (int iFila = 0; (iFila + fila) < altura; iFila++)
+	{
+		for (int iColm = 0; iColm < anchura; iColm++)
+		{
+			if ((iFila + fila + 1) < altura)
+			{
+				tablero[(iFila + fila)*anchura + iColm] = tablero[(iFila + fila + 1)*altura + iColm];
+			}
+			else {
+				tablero[(iFila + fila)*anchura + iColm] = generarJewel(dificultad);
+			}
+		}
+	}
+}
+
+void bombaColumna(float* tablero, int anchura, int altura, int dificultad, int columna) {
+	
+	for (int iFila = 0; iFila < altura; iFila++)
+	{
+		for (int iColm = 0; (iColm + columna) < anchura; iColm++)
+		{
+			if ((iColm + columna + 1) == anchura)
+			{
+				tablero[(iFila*anchura) + (iColm + columna)] = generarJewel(dificultad);
+			}
+			else {
+				tablero[(iFila*anchura) + (iColm + columna)] = tablero[(iFila*altura) + (iColm + columna + 1)];
+			}
+		}
+	}
+}
+void bombaRotarCPU(float* tablero, int anchura, int altura, int fila, int columna)
+{
+	float aux[9];
+	int index = 0;
+	for (int iColm = columna - 1; iColm <= columna + 1; iColm++)
+	{
+		for (int iFila = fila + 1; iFila >= fila - 1; iFila--)
+		{
+			aux[index] = tablero[iFila*anchura + iColm];
+			index++;
+		}
+	}
+	index = 0;
+	for (int iFila = 0; iFila < 3; iFila++)
+	{
+		for (int iColumna = 0; iColumna < 3; iColumna++)
+		{
+			tablero[(iFila + fila - 1)*anchura + (columna - 1) + iColumna] = aux[index];
+			index++;
+		}
+	}
+}
+
+__global__ void bombaRotarKernel(float* tablero, int anchura, int altura, int fila, int columna)
+{
+	int tx = threadIdx.x;
+	int ty = threadIdx.y;
+}
+
 int main() {
 	//Matriz de tamaño variable de floats, un array de Altura*Anchura
 	int anchura = 2;
@@ -547,20 +609,24 @@ int main() {
 	int dificultad = 1;
 	bool automatico = true;
 	int TILE_WIDTH = 16;
+	int size;
+	
 	char ficheroGuardado[9] = "save.txt";
 
 	float *tablero;
+	float* tablero_d;
 	bool jugando = true;
 
-	int eleccion;
+	int eleccion = 2;
 	bool encontrado = false;
 	std::cout << "Desea cargar una partida guardada? 1.-SI   2.-NO\n";
 	std::cin >> eleccion;
 	if (eleccion == 1)
 	{
 		encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
+		std::cout << "Cargando Tablero de " << anchura << "x" << altura << " con dificultad: " << dificultad;
+		std::cout << std::endl;
 	}
-
 	if (!encontrado || (eleccion == 2))
 	{
 		std::cout << "Anchura del tablero: ";
@@ -581,16 +647,19 @@ int main() {
 		case 2: automatico = false; break;
 		default: printf("Valor no valido.\n"); return -1;
 	}
-	
-	tablero = (float*)malloc(altura * anchura * sizeof(float));
-
+	size = anchura*altura;
+	tablero = (float*)malloc(size * sizeof(float));
+	cudaMalloc((void**)&tablero_d, size);
 	//Se inicializa la matriz
 	if (encontrado)
 	{
 		cargar(anchura, altura, tablero, ficheroGuardado);
+		std::cout << "Se ha cargado el Tablero: \n";
 	}
-	generacionInicialRandomJewels(tablero, dificultad, anchura, altura);
-	
+	else {
+		generacionInicialRandomJewels(tablero, dificultad, anchura, altura);
+		std::cout << "Se crea un tablero nuevo: \n";
+	}
 	//Bucle principal del juego
 	while (jugando) {
 
@@ -604,6 +673,7 @@ int main() {
 		std::cout << "(1) Intercambiar Jewels\n";
 		std::cout << "(2) Usar una Bomba\n";
 		std::cout << "(3) Guardar partida\n";
+		std::cout << "(4) Exit\n";
 		std::cout << "Elija accion: ";
 
 		std::cin >> accion;
@@ -683,63 +753,109 @@ int main() {
 		case 2: {
 			// Bomba
 			int bomba = 0;
-
+			int fila =0, columna=0;
 			std::cout << "Elija una bomba:";
 
+			/* Bombas por tipo de dificultad */
 			switch (dificultad) {
 			case 1: {
-				std::cout << "(1) Bomba de fila";
+				std::cout << "(1) Bomba de fila ";
+				std::cout << "\nEleccion: ";
+				std::cin >> bomba;
+
+				if (bomba != 1)
+				{
+					printf("Bomba erronea.\n");
+					continue;
+				}
+				std::cout << "X: ";
+				std::cin >> fila;
+				bombaFila(tablero, anchura, altura, dificultad, fila);
 				break;
 			}
 			case 2: {
 				std::cout << "(1) Bomba de fila";
 				std::cout << "(2) Bomba de columna";
+				std::cout << "\nEleccion: ";
+				std::cin >> bomba;
+
+				if (bomba < 1 && bomba > 2)
+				{
+					printf("Bomba erronea.\n");
+					continue;
+				}
+				switch (bomba) {
+					case 1:
+					{
+						std::cout << "X: ";
+						std::cin >> fila;
+						bombaFila(tablero, anchura, altura, dificultad, fila);
+						break;
+					}
+					case 2:
+					{
+						std::cout << "Y: ";
+						std::cin >> columna;
+						bombaColumna(tablero, anchura, altura, dificultad, columna);
+						break;
+					}
+				}
 				break;
 			}
 			case 3: {
 				std::cout << "(1) Bomba de fila";
 				std::cout << "(2) Bomba de columna";
 				std::cout << "(3) Bomba de rotacion 3x3 (la jewel elegida es el centro)";
-				break;
-			}
-			}
+				std::cout << "\nEleccion: ";
+				std::cin >> bomba;
 
-			std::cin >> bomba;
-
-			switch (dificultad)
-			{
-			case 1:
-			{
-				if (bomba != 1)
-				{
-					printf("Bomba erronea.\n");
-					continue;
-				}
-				break;
-			}
-			case 2:
-			{
-				if (bomba < 1 && bomba > 2)
-				{
-					printf("Bomba erronea.\n");
-					continue;
-				}
-				break;
-			}
-			case 3:
-			{
 				if (bomba < 1 && bomba > 3)
 				{
 					printf("Bomba erronea.\n");
 					continue;
 				}
+				switch (bomba) {
+				case 1:
+				{
+					std::cout << "X: ";
+					std::cin >> fila;
+					bombaFila(tablero, anchura, altura, dificultad, fila);
+					break;
+				}
+				case 2:
+				{
+					std::cout << "Y: ";
+					std::cin >> columna;
+					bombaColumna(tablero, anchura, altura, dificultad, columna);
+					break;
+				}
+				case 3:
+				{
+					std::cout << "X: ";
+					std::cin >> fila;
+					std::cout << "Y: ";
+					std::cin >> columna;
+					if ((fila - 1) < 0 || (fila + 1) >= altura || (columna - 1) < 0 || (columna + 1) >= anchura)
+					{
+						std::cout << "Rotacion no valida" << std::endl;
+					}
+					else
+					{
+						/* Modo CUDA */
+						dim3 dimBlock(anchura, altura);
+						dim3 dimGrid(1, 1);
+						cudaMemcpy(tablero_d, tablero, size, cudaMemcpyHostToDevice);
+						bombaRotarKernel << < dimGrid, dimBlock >> > (tablero_d, anchura, altura, fila, columna);
+						cudaMemcpy(tablero, tablero_d, size, cudaMemcpyDeviceToHost);
+						/* Modo CPU */
+						//bombaRotarCPU(tablero, anchura, altura, fila, columna);
+					}
+					break;
+				}
+				}
 				break;
 			}
 			}
-
-			//LLAMADA A LA FUNCION DE EJECUTAR BOMBA//
-
-
 			break;
 		}
 		case 3: {
@@ -747,8 +863,17 @@ int main() {
 			std::cout << "Guardado correcto.\n";
 			break;
 		}
+		case 4:
+		{
+			free(tablero);
+			cudaFree(tablero_d);
+			return 0;
+		}
 		}
 			
 	}
+
+	free(tablero);
+	cudaFree(tablero_d);
 	return 0;
 }
