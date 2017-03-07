@@ -6,6 +6,8 @@
 #include <curand_kernel.h>
 #include <ctime>
 
+#include <fstream>
+
 //Función que llamara a la de CUDA para actualizar la matrz
 //void deleteJewels(float *A, int width) {
 	//int size = width*width * sizeof(float);
@@ -488,6 +490,55 @@ void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int dire
 	if (seleccion == 2)
 		analisisTableroManual(dificultad, tablero, anchura, altura, jewel2_x, jewel2_y);
 }
+bool precargar(int& anchura, int& altura, int& dificultad, char* fichero)
+{
+	std::ifstream fCarga(fichero);
+	char tam[4];
+	if (!fCarga.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
+	
+	fCarga.getline(tam, 4);
+
+	anchura = (int)tam[0] - 48;
+	altura = (int)tam[1] - 48;
+	dificultad = (int)tam[2] -48;
+
+	fCarga.close();
+	return true;
+}
+void cargar(int anchura, int altura, float*  tablero, char* fichero)
+{
+	char* array = (char*)malloc(anchura*altura + 1 + 3);
+	std::ifstream fCarga(fichero);
+	fCarga.getline(array, (anchura*altura + 1 + 3));
+	for (int i = 0; i < anchura*altura; i++)
+	{
+		tablero[i] = array[i + 3];
+	}
+	free(array);
+	fCarga.close();
+}
+
+void guardado(float* tablero, int anchura, int altura, int dificultad, char* fichero)
+{
+	//Sistema de guardado
+	std::ofstream ficheroGuardado;
+	ficheroGuardado.open(fichero);
+	ficheroGuardado.clear();
+	/* Almacenar anchura y altura*/
+	ficheroGuardado << anchura;
+	ficheroGuardado << altura;
+	ficheroGuardado << dificultad;
+	/* Almacenar Resto */
+	for (int index = 0; index < anchura*altura; index++)
+	{
+		ficheroGuardado << tablero[index];
+	}
+	ficheroGuardado.close();
+}
 
 int main() {
 	//Matriz de tamaño variable de floats, un array de Altura*Anchura
@@ -496,21 +547,33 @@ int main() {
 	int dificultad = 1;
 	bool automatico = true;
 	int TILE_WIDTH = 16;
+	char ficheroGuardado[9] = "save.txt";
 
 	float *tablero;
 	bool jugando = true;
 
-	std::cout << "Anchura del tablero: ";
-	std::cin >> anchura;
+	int eleccion;
+	bool encontrado = false;
+	std::cout << "Desea cargar una partida guardada? 1.-SI   2.-NO\n";
+	std::cin >> eleccion;
+	if (eleccion == 1)
+	{
+		encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
+	}
 
-	std::cout << "Altura del tablero: ";
-	std::cin >> altura;
+	if (!encontrado || (eleccion == 2))
+	{
+		std::cout << "Anchura del tablero: ";
+		std::cin >> anchura;
 
-	std::cout << "Elija dificultad: \n1.-Facil \n2.-Media \n3.-Dificil";
-	std::cin >> dificultad;
+		std::cout << "Altura del tablero: ";
+		std::cin >> altura;
 
+		std::cout << "Elija dificultad: \n1.-Facil \n2.-Media \n3.-Dificil\n";
+		std::cin >> dificultad;
+	}
 	int seleccion;
-	std::cout << "Automatico?   1.-SI   2.-NO";
+	std::cout << "Automatico?   1.-SI   2.-NO\n";
 	std::cin >> seleccion;
 
 	switch (seleccion) {
@@ -518,115 +581,127 @@ int main() {
 		case 2: automatico = false; break;
 		default: printf("Valor no valido.\n"); return -1;
 	}
-
+	
 	tablero = (float*)malloc(altura * anchura * sizeof(float));
 
 	//Se inicializa la matriz
+	if (encontrado)
+	{
+		cargar(anchura, altura, tablero, ficheroGuardado);
+	}
 	generacionInicialRandomJewels(tablero, dificultad, anchura, altura);
-
+	
 	//Bucle principal del juego
 	while (jugando) {
 
 		printTablero(tablero, anchura, altura);
-
+		
 		int jewel1_x = 0;
 		int jewel1_y = 0;
 		int accion = 0;
 
-		std::cout << "Acción a realizar:";
-		std::cout << "(1) Intercambiar Jewels";
-		std::cout << "(2) Usar una Bomba";
+		std::cout << "Acción a realizar:\n";
+		std::cout << "(1) Intercambiar Jewels\n";
+		std::cout << "(2) Usar una Bomba\n";
+		std::cout << "(3) Guardar partida\n";
+		std::cout << "Elija accion: ";
 
 		std::cin >> accion;
 
-		if(accion == 1){
-			std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
-			std::cout << "X: ";
-			std::cin >> jewel1_x;
-			std::cout << "Y: ";
-			std::cin >> jewel1_y;
+		
+		switch (accion) {
+		case 1: {
+			
+				std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
+				std::cout << "X: ";
+				std::cin >> jewel1_x;
+				std::cout << "Y: ";
+				std::cin >> jewel1_y;
 
-			if (!((jewel1_x < anchura) && (jewel1_x >= 0) && (jewel1_y < altura) && (jewel1_y >= 0))) {
-				printf("Posicion erronea.\n");
-				continue;
-			}
+				if (!((jewel1_x < anchura) && (jewel1_x >= 0) && (jewel1_y < altura) && (jewel1_y >= 0))) {
+					printf("Posicion erronea.\n");
+					continue;
+				}
 
-			int direccion = 0;
-			std::cout << "Direccion a seguir para intercambio de posiciones: \n 1.-Arriba\n 2.-Abajo\n 3.-Izquierda\n 4.-Derecha";
-			std::cin >> direccion;
+				int direccion = 0;
+				std::cout << "Direccion a seguir para intercambio de posiciones: \n 1.-Arriba\n 2.-Abajo\n 3.-Izquierda\n 4.-Derecha";
+				std::cin >> direccion;
 
-			if (direccion > 4 && direccion > 1) {
-				printf("Direccion erronea.\n");
-				continue;
-			}
-			else {
-				switch (direccion)
-				{
-				case 1: //Arriba
-				{
-					if (jewel1_y == altura)
+				if (direccion > 4 && direccion > 1) {
+					printf("Direccion erronea.\n");
+					continue;
+				}
+				else {
+					switch (direccion)
 					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
-					}
-					break;
-				}
-				case 2: //Abajo
-				{
-					if (jewel1_y == 0)
+					case 1: //Arriba
 					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
+						if (jewel1_y == altura)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
 					}
-					break;
-				}
-				case 3: //Izquierda
-				{
-					if (jewel1_x == 0)
+					case 2: //Abajo
 					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
+						if (jewel1_y == 0)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
 					}
-					break;
-				}
-				case 4: //Derecha
-				{
-					if (jewel1_x == anchura - 1)
+					case 3: //Izquierda
 					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
+						if (jewel1_x == 0)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
 					}
-					break;
-				}
+					case 4: //Derecha
+					{
+						if (jewel1_x == anchura - 1)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
+					}
+					}
+
+					intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad);
+
+					if (seleccion == 1)
+						analisisTableroAutomatico(dificultad, tablero, anchura, altura);
 				}
 
-				intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion,dificultad);
-				
-				if (seleccion == 1)
-					analisisTableroAutomatico(dificultad, tablero, anchura, altura);
-			}
-
-		}else {
+			break;
+		}
+		case 2: {
+			// Bomba
 			int bomba = 0;
 
 			std::cout << "Elija una bomba:";
 
 			switch (dificultad) {
-				case 1: {
-					std::cout << "(1) Bomba de fila";
-					break;
-				}
-				case 2: {
-					std::cout << "(1) Bomba de fila";
-					std::cout << "(2) Bomba de columna";
-					break;
-				}
-				case 3: {
-					std::cout << "(1) Bomba de fila";
-					std::cout << "(2) Bomba de columna";
-					std::cout << "(3) Bomba de rotacion 3x3 (la jewel elegida es el centro)";
-					break;
-				}
+			case 1: {
+				std::cout << "(1) Bomba de fila";
+				break;
+			}
+			case 2: {
+				std::cout << "(1) Bomba de fila";
+				std::cout << "(2) Bomba de columna";
+				break;
+			}
+			case 3: {
+				std::cout << "(1) Bomba de fila";
+				std::cout << "(2) Bomba de columna";
+				std::cout << "(3) Bomba de rotacion 3x3 (la jewel elegida es el centro)";
+				break;
+			}
 			}
 
 			std::cin >> bomba;
@@ -663,7 +738,17 @@ int main() {
 			}
 
 			//LLAMADA A LA FUNCION DE EJECUTAR BOMBA//
+
+
+			break;
 		}
+		case 3: {
+			guardado(tablero, anchura, altura, dificultad, ficheroGuardado);
+			std::cout << "Guardado correcto.\n";
+			break;
+		}
+		}
+			
 	}
 	return 0;
 }
