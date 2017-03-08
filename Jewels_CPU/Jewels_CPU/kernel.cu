@@ -10,6 +10,7 @@
 
 //funcion para generar una jewel aleatoria, como la generacion inicial.
 int generarJewel(int dificultad) {
+	srand(time(NULL));
 	switch (dificultad) {
 	case 1: {
 		int randJewel = rand() % 4 + 1;
@@ -28,6 +29,7 @@ int generarJewel(int dificultad) {
 }
 
 void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura) {
+	srand(time(NULL));
 	for (int i = 0; i < altura*anchura; i++) {
 		switch (dificultad) {
 		case 1: {
@@ -68,24 +70,37 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 
 	int final = 0;
 	
-	for (int i = 0; i < max; i++) {
-		printf("\ni:%i valor:%i\n",i,jewels_eliminadas[i]);
+	for (int i = 0; i < max*2; i++) {
+		printf("\ni:%i valor:%f\n",i,jewels_eliminadas[i]);
 		if (jewels_eliminadas[i] < 0) {
 			final = i;
+			break;
 		}
 	}
 
+	if (final == 0) final = max*2;
+
 	printf("\nFinal: %i\n", final);
+	srand(time(NULL));
 
-	for (int y = jewels_eliminadas[1]; y < altura; y++) {
-		for (int x = jewels_eliminadas[0]; x < jewels_eliminadas[final-1]; x++) {
-			printf("\nBUCLE X:%I  Y:%I\n",x,y);
-				tablero[x + (y - 1)*(anchura)] = tablero[x + y*anchura];
-
-				if (y == altura) {
-					//Generar jewel random
-					printf("\nGenerando\n");
+	if (jewels_eliminadas[0] != jewels_eliminadas[2]) {
+		for (int y = jewels_eliminadas[1]; y < altura; y++) {
+			printf("A");
+			for (int x = jewels_eliminadas[0]; x <= jewels_eliminadas[final - 2]; x++) {
+				printf("\nBUCLE X:%i  Y:%i\n", x, y);
+				if (y + 1 < altura) {
+					tablero[x + (y)*(anchura)] = tablero[x + (y + 1)*anchura];
+					tablero[x + (y + 1)*anchura] = -1;
+				}
+				else {
 					tablero[x + y*anchura] = -1;
+				}
+
+				//if (y == altura) {
+					//
+					//Generar jewel random
+					//printf("\nGenerando\n");
+					//tablero[x + y*anchura] = -1;
 					/*switch (dificultad) {
 					case 1: {
 						int randJewel = rand() % 4 + 1;
@@ -103,7 +118,26 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 						break;
 					}
 					}*/
+					//}
+			}
+		}
+	}else{
+		int posicion = jewels_eliminadas[0] + jewels_eliminadas[1] * anchura;
+		float valor = tablero[posicion];
+		for (int y = jewels_eliminadas[1]; y < altura; y++) {
+			printf("A");
+			for (int x = jewels_eliminadas[0]; x <= jewels_eliminadas[final - 2]; x++) {
+				printf("\nBUCLE X:%i  Y:%i\n", x, y);
+				if (y < altura) {
+					if (y >= jewels_eliminadas[final-2]) {
+						tablero[x + (y-final/2)*(anchura)] = tablero[x + (y)*anchura];
+						tablero[x + (y)*anchura] = -1;
+					}
+					else {
+						tablero[x + (y)*anchura] = -1;
+					}
 				}
+			}
 		}
 	}
 }
@@ -150,6 +184,8 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 	if (1 + jewels_posibles_izq + jewels_posibles_der >= 3) {
 		int salto = 0;
 
+		printf("\nIZQ:%i   DER:%i\n",jewels_posibles_izq,jewels_posibles_der);
+
 		for (int j = jewels_posibles_izq; j >= (1); j--) {
 			jewels_eliminadas[salto] = x - j;
 			jewels_eliminadas[salto + 1] = y;
@@ -161,8 +197,8 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 
 		salto = 2;
 		for (int k = 1; k <= jewels_posibles_der; k++) {
-			jewels_eliminadas[salto + 1 + jewels_posibles_izq*2] = x + k;
-			jewels_eliminadas[salto + 1 + jewels_posibles_izq*2 + 1] = y;
+			jewels_eliminadas[salto + jewels_posibles_izq*2] = x + k;
+			jewels_eliminadas[salto + jewels_posibles_izq*2 + 1] = y;
 			salto += 2;
 		}
 	}
@@ -198,7 +234,7 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 			printf("\nSE PUEDE\n");
 
 			int salto = 0;
-			for (int j = jewels_posibles_abaj; j >= (1); j++) {
+			for (int j = jewels_posibles_abaj; j >= (1); j--) {
 				jewels_eliminadas[salto] = x;
 				jewels_eliminadas[salto + 1] = y - j;
 				salto += 2;
@@ -210,7 +246,7 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 			salto = 2;
 			for (int k = 1; k <= jewels_posibles_arrib; k++) {
 				jewels_eliminadas[salto + jewels_posibles_abaj*2] = x;
-				jewels_eliminadas[salto + 1 + jewels_posibles_abaj*2 + 1] = y + k;
+				jewels_eliminadas[salto + jewels_posibles_abaj*2 + 1] = y + k;
 				salto += 2;
 			}
 		}
