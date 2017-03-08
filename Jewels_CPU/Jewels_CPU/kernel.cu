@@ -61,7 +61,6 @@ void printTablero(float* tablero, int anchura, int altura) {
 	printf("\n");
 }
 
-//TODO: revisar
 void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, int anchura, int altura) {
 	int max = 0;
 
@@ -71,7 +70,7 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	int final = 0;
 	
 	for (int i = 0; i < max*2; i++) {
-		printf("\ni:%i valor:%f\n",i,jewels_eliminadas[i]);
+		//printf("\ni:%i valor:%f\n",i,jewels_eliminadas[i]);
 		if (jewels_eliminadas[i] < 0) {
 			final = i;
 			break;
@@ -80,28 +79,36 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 
 	if (final == 0) final = max*2;
 
-	printf("\nFinal: %i\n", final);
+	//printf("\nFinal: %i\n", final);
 	srand(time(NULL));
 
 	if (jewels_eliminadas[0] != jewels_eliminadas[2]) {
 		for (int y = jewels_eliminadas[1]; y < altura; y++) {
-			printf("A");
+			//printf("A");
 			for (int x = jewels_eliminadas[0]; x <= jewels_eliminadas[final - 2]; x++) {
-				printf("\nBUCLE X:%i  Y:%i\n", x, y);
+				//printf("\nBUCLE X:%i  Y:%i\n", x, y);
 				if (y + 1 < altura) {
 					tablero[x + (y)*(anchura)] = tablero[x + (y + 1)*anchura];
-					tablero[x + (y + 1)*anchura] = -1;
+					switch (dificultad) {
+					case 1: {
+						int randJewel = rand() % 4 + 1;
+						tablero[x + (y+1)*anchura] = randJewel;
+						break;
+					}
+					case 2: {
+						int randJewel = rand() % 6 + 1;
+						tablero[x + (y+1)*anchura] = randJewel;
+						break;
+					}
+					case 3: {
+						int randJewel = rand() % 8 + 1;
+						tablero[x + (y+1)*anchura] = randJewel;
+						break;
+					}
+					}
 				}
 				else {
-					tablero[x + y*anchura] = -1;
-				}
-
-				//if (y == altura) {
-					//
-					//Generar jewel random
-					//printf("\nGenerando\n");
-					//tablero[x + y*anchura] = -1;
-					/*switch (dificultad) {
+					switch (dificultad) {
 					case 1: {
 						int randJewel = rand() % 4 + 1;
 						tablero[x + y*anchura] = randJewel;
@@ -117,24 +124,56 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 						tablero[x + y*anchura] = randJewel;
 						break;
 					}
-					}*/
-					//}
+					}
+				}
 			}
 		}
 	}else{
 		int posicion = jewels_eliminadas[0] + jewels_eliminadas[1] * anchura;
 		float valor = tablero[posicion];
 		for (int y = jewels_eliminadas[1]; y < altura; y++) {
-			printf("A");
+			//printf("A");
 			for (int x = jewels_eliminadas[0]; x <= jewels_eliminadas[final - 2]; x++) {
-				printf("\nBUCLE X:%i  Y:%i\n", x, y);
+				//printf("\nBUCLE X:%i  Y:%i\n", x, y);
 				if (y < altura) {
 					if (y >= jewels_eliminadas[final-2]) {
 						tablero[x + (y-final/2)*(anchura)] = tablero[x + (y)*anchura];
-						tablero[x + (y)*anchura] = -1;
+						switch (dificultad) {
+						case 1: {
+							int randJewel = rand() % 4 + 1;
+							tablero[x + (y)*anchura] = randJewel;
+							break;
+						}
+						case 2: {
+							int randJewel = rand() % 6 + 1;
+							tablero[x + (y)*anchura] = randJewel;
+							break;
+						}
+						case 3: {
+							int randJewel = rand() % 8 + 1;
+							tablero[x + (y)*anchura] = randJewel;
+							break;
+						}
+						}
 					}
 					else {
-						tablero[x + (y)*anchura] = -1;
+						switch (dificultad) {
+						case 1: {
+							int randJewel = rand() % 4 + 1;
+							tablero[x + (y)*anchura] = randJewel;
+							break;
+						}
+						case 2: {
+							int randJewel = rand() % 6 + 1;
+							tablero[x + (y)*anchura] = randJewel;
+							break;
+						}
+						case 3: {
+							int randJewel = rand() % 8 + 1;
+							tablero[x + (y)*anchura] = randJewel;
+							break;
+						}
+						}
 					}
 				}
 			}
@@ -142,7 +181,6 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	}
 }
 
-//Funcion CPU. FUNCIONA
 void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura, int x, int y) {
 	int max = 0;
 	int size = anchura*altura;
@@ -157,15 +195,13 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 		jewels_eliminadas[i] = -1;
 	}
 
-	//Tiene posibles eliminables por la derecha o izquierda
-	// (((x-1+y*anchura>=0)&&tablero[x - 1 + y*anchura] == tablero[x + y*anchura]) || ((x+1+y*anchura<=size)&&tablero[x + 1 + y*anchura] == tablero[x + y*anchura])) {
 	int jewels_posibles_izq = 0;
 	int jewels_posibles_der = 0;
-	printf("\nHORIZONTAL\n");
+	//printf("\nHORIZONTAL\n");
 	//Si tiene por la izquierda
 	if ((x - 1 + y*anchura >= 0) && tablero[x - 1 + y*anchura] == tablero[x + y*anchura]) {
 		int i = 1;
-		while ((x - i + y*anchura >= 0) && tablero[x - i + y*anchura] == tablero[x + y*anchura]) {
+		while ((x - i + y*anchura >= 0) && (x -i>=0) && tablero[x - i + y*anchura] == tablero[x + y*anchura]) {
 			jewels_posibles_izq++;
 			i++;
 		}
@@ -174,7 +210,7 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 	//Si tiene por la derecha
 	if ((x + 1 + y*anchura <= size) && tablero[x + 1 + y*anchura] == tablero[x + y*anchura]) {
 		int i = 1;
-		while ((x + i + y*anchura <= size) && tablero[x + i + y*anchura] == tablero[x + y*anchura]) {
+		while ((x + i + y*anchura <= size) && (x + i < anchura) && tablero[x + i + y*anchura] == tablero[x + y*anchura]) {
 			jewels_posibles_der++;
 			i++;
 		}
@@ -184,7 +220,7 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 	if (1 + jewels_posibles_izq + jewels_posibles_der >= 3) {
 		int salto = 0;
 
-		printf("\nIZQ:%i   DER:%i\n",jewels_posibles_izq,jewels_posibles_der);
+		//printf("\nIZQ:%i   DER:%i\n",jewels_posibles_izq,jewels_posibles_der);
 
 		for (int j = jewels_posibles_izq; j >= (1); j--) {
 			jewels_eliminadas[salto] = x - j;
@@ -206,32 +242,32 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 		int jewels_posibles_arrib = 0;
 		int jewels_posibles_abaj = 0;
 
-		printf("\nVERTICAL\n");
+		//printf("\nVERTICAL\n");
 		//Si tiene por abajo
 		if ((x + (y - 1)*anchura >= 0) && tablero[x + (y - 1)*anchura] == tablero[x + y*anchura]) {
 			printf("\nABAJO\n");
 			int i = 1;
 			while ((x + (y - i)*anchura >= 0) && tablero[x + (y - i)*anchura] == tablero[x + y*anchura]) {
 				jewels_posibles_abaj++;
-				printf("\nTIENE ABAJO\n");
+				//printf("\nTIENE ABAJO\n");
 				i++;
 			}
 		}
 
 		//Si tiene por arriba
 		if ((x + 1 + y*anchura <= size) && tablero[x + (y + 1)*anchura] == tablero[x + y*anchura]) {
-			printf("\nARRIBA\n");
+			//printf("\nARRIBA\n");
 			int i = 1;
 			while ((x + (y + i)*anchura <= size) && tablero[x + (y + i)*anchura] == tablero[x + y*anchura]) {
 				jewels_posibles_arrib++;
-				printf("\nTIENE ARRIBA\n");
+				//printf("\nTIENE ARRIBA\n");
 				i++;
 			}
 		}
 
 		//Se pueden eliminar
 		if (1 + jewels_posibles_abaj + jewels_posibles_arrib >= 3) {
-			printf("\nSE PUEDE\n");
+			//printf("\nSE PUEDE\n");
 
 			int salto = 0;
 			for (int j = jewels_posibles_abaj; j >= (1); j--) {
@@ -252,15 +288,14 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 		}
 	}
 
-	//("\nJewels a eliminar horizontal: x:%f y:%f | x:%f y:%f | x:%f y:%f", jewels_eliminadas_d[0], jewels_eliminadas_d[1] / anchura, jewels_eliminadas_d[2], jewels_eliminadas_3] / anchura, jewels_eliminadas[4], jewels_eliminadas[5] / anchura);
-	for (int q = 0; q < 2 * max; q++) {
+	/*for (int q = 0; q < 2 * max; q++) {
 		if (q % 2 != 0) {
 			printf(" y:%f\n", jewels_eliminadas[q]);
 		}
 		else {
 			printf("| x:%f\n", jewels_eliminadas[q]);
 		}
-	}
+	}*/
 	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
 }
 
@@ -320,7 +355,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 		jewels_eliminadas[i] = -1;
 	}
 
-	printf("\nAUTOMATICO\n");
+	//printf("\nAUTOMATICO\n");
 
 	for (int y = 0; y < altura; y++) {
 		for (int x = 0; x < anchura; x++) {
