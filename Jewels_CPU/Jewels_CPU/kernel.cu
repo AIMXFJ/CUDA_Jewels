@@ -402,7 +402,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 
 	//printf("\nMejores valores: x:%i  y:%i  valor:%i\n",x_mejor,y_mejor,valor_mejor);
 
-	intercambiarPosiciones(tablero, x_mejor + 1, y_mejor, 4, anchura, altura, 1, dificultad);
+	intercambiarPosiciones(tablero, x_mejor, y_mejor, 4, anchura, altura, 1, dificultad);
 
 	//Se puede eliminar
 	if (valor_mejor >= 3) {
