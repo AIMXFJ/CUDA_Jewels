@@ -8,6 +8,47 @@
 
 #include <fstream>
 
+//Analiza las propiedades de la tarjeta grafica para devolver el tamaño adecuado de tile, tambien trata el tamaño del tablero
+int obtenerTileWidth(int anchura, int altura) {
+	int min_medida = 0;
+
+	if (anchura > altura) min_medida = anchura;
+	else min_medida = altura;
+
+	cudaDeviceProp propiedades;
+
+	int max_threads = propiedades.maxThreadsPerBlock;
+
+	if (anchura == altura) {	//Si la matriz es cuadrada, para no tener 1 solo bloque
+		if (min_medida / 32 > 1 && max_threads == 1024) {
+			return 32;
+		}
+		if (min_medida / 16 > 1) {
+			return 16;
+		}
+		else if (min_medida / 8 > 1) {
+			return 8;
+		}
+		else if (min_medida / 4 > 1) {
+			return 4;
+		}
+	}
+	else {	//si la matriz no es cuadrada
+		if (min_medida / 32 >= 1 && max_threads == 1024) {
+			return 32;
+		}
+		if (min_medida / 16 >= 1) {
+			return 16;
+		}
+		else if (min_medida / 8 >= 1) {
+			return 8;
+		}
+		else if (min_medida / 4 >= 1) {
+			return 4;
+		}
+	}
+}
+
 //funcion para generar una jewel aleatoria, como la generacion inicial.
 int generarJewel(int dificultad) {
 	srand(time(NULL));
@@ -298,9 +339,14 @@ void printTablero(float* tablero, int anchura, int altura) {
 	cudaFree(jewels_eliminadas_d);
 }*/
 
-__global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, float* jewels_eliminadas_d, int dificultad, int anchura, int altura, int final) {
+__global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, float* jewels_eliminadas_d, int dificultad, int anchura, int altura, int final, int TILE_WIDTH) {
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
+	int block_x = blockIdx.x;
+	int block_y = blockIdx.y;
+
+	tx += block_x * TILE_WIDTH;
+	ty += block_y * TILE_WIDTH;
 	//printf("\nBidx x:%i y:%i  | thrdIdx x:%i y:%i\n", blockIdx.x, blockIdx.y, threadIdx.x, threadIdx.y);
 	int max = 0;
 
@@ -337,7 +383,7 @@ __global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, flo
 	}
 }
 
-void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, int anchura, int altura) {
+void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, int anchura, int altura,int TILE_WIDTH) {
 	float *tablero_d;
 	float *jewels_eliminadas_d;
 	float *tablero_aux_d;
@@ -356,8 +402,6 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	//Jewels a eliminar a GPU
 	cudaMalloc((void**)&jewels_eliminadas_d, 2 * max * sizeof(float));
 
-	dim3 dimGrid(1, 1);
-	dim3 dimBlock(anchura, altura);
 	cudaMemcpy(jewels_eliminadas_d, jewels_eliminadas, 2 * max * sizeof(float), cudaMemcpyHostToDevice);
 
 	int final = 0;
@@ -372,7 +416,17 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 
 	if (final == 0) final = max * 2;
 
-	eliminarJewelsKernel << <dimGrid, dimBlock >> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final);
+	//Cantidad de bloques de ancho de medida TILE_WIDTH
+	int anch = ceil(anchura / TILE_WIDTH);
+
+	//Cantidad de bloques de alto con medida TILE_WIDTH
+	int alt = ceil(altura / TILE_WIDTH);
+
+	//Configuracion de ejecucion
+	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+	dim3 dimGrid(anch, alt);
+
+	eliminarJewelsKernel << <dimGrid, dimBlock >> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final,TILE_WIDTH);
 
 	cudaMemcpy(tablero, tablero_d, size, cudaMemcpyDeviceToHost);
 
@@ -513,9 +567,15 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	cudaFree(jewels_eliminadas_d);
 }*/
 
-__global__ void analisisTableroAutomaticoKernel(float *tablero_d, float *aux_d, int dificultad, int anchura, int altura) {
+__global__ void analisisTableroAutomaticoKernel(float *tablero_d, float *aux_d, int dificultad, int anchura, int altura, int TILE_WIDTH) {
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
+	int block_x = blockIdx.x;
+	int block_y = blockIdx.y;
+
+	tx += block_x * TILE_WIDTH;
+	ty += block_y * TILE_WIDTH;
+
 	int jewels_posibles_der = 0;
 
 	//Si tiene por la derecha
@@ -538,7 +598,7 @@ __global__ void analisisTableroAutomaticoKernel(float *tablero_d, float *aux_d, 
 	}
 }
 
-void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura, int x, int y) {
+void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura, int x, int y, int TILE_WIDTH) {
 	int max = 0;
 	int size = anchura*altura;
 
@@ -653,10 +713,10 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 			printf("| x:%f\n", jewels_eliminadas[q]);
 		}
 	}
-	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
+	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura, TILE_WIDTH);
 }
 
-void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura, int seleccion, int dificultad) {
+void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura, int seleccion, int dificultad, int TILE_WIDTH) {
 	int jewel2_x = jewel1_x;
 	int jewel2_y = jewel1_y;
 	switch (direccion)
@@ -689,11 +749,11 @@ void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int dire
 	tablero[jewel2_x + jewel2_y*anchura] = tablero[jewel1_x + jewel1_y*anchura];
 	tablero[jewel1_x + jewel1_y*anchura] = aux1;
 
-	analisisTableroManual(dificultad, tablero, anchura, altura, jewel2_x, jewel2_y);
+	analisisTableroManual(dificultad, tablero, anchura, altura, jewel2_x, jewel2_y,TILE_WIDTH);
 }
 
 //CUDA CPU Function. Analiza la mejor opcion y la ejecuta
-void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int altura) {
+void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int altura, int TILE_WIDTH) {
 	float *tablero_d;
 	float *aux_d;
 	float *aux;
@@ -722,12 +782,18 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	cudaMalloc((void**)&aux_d, size);
 	cudaMemcpy(aux_d, aux, size, cudaMemcpyHostToDevice);
 
-	//Configuracion de ejecucion, 1 hilo por bloque, tantos bloques como celdas
-	dim3 dimBlock(anchura, altura);
-	dim3 dimGrid(1, 1);
+	//Cantidad de bloques de ancho de medida TILE_WIDTH
+	int anch = ceil(anchura / TILE_WIDTH);
+
+	//Cantidad de bloques de alto con medida TILE_WIDTH
+	int alt = ceil(altura / TILE_WIDTH);
+
+	//Configuracion de ejecucion
+	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+	dim3 dimGrid(anch, alt);
 
 	//Inicio del calculo, misma funcion de analisis en manual y automatico
-	analisisTableroAutomaticoKernel <<<dimGrid,dimBlock>>> (tablero_d, aux_d, dificultad, anchura, altura);
+	analisisTableroAutomaticoKernel <<<dimGrid,dimBlock>>> (tablero_d, aux_d, dificultad, anchura, altura, TILE_WIDTH);
 	if (cudaSuccess != cudaGetLastError())
 		printf("\nCUDA Error!\n");
 
@@ -751,7 +817,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	}
 
 	if (valor_mejor >= 3) {
-		intercambiarPosiciones(tablero, x_mejor, y_mejor, 4, anchura, altura, 1, dificultad);
+		intercambiarPosiciones(tablero, x_mejor, y_mejor, 4, anchura, altura, 1, dificultad,TILE_WIDTH);
 	}
 }
 
@@ -865,7 +931,6 @@ int main() {
 	int altura = 2;
 	int dificultad = 1;
 	bool automatico = true;
-	int TILE_WIDTH = 16;
 	int size;
 
 	char ficheroGuardado[9] = "save.txt";
@@ -917,6 +982,10 @@ int main() {
 		generacionInicialRandomJewels(tablero, dificultad, anchura, altura);
 		std::cout << "Se crea un tablero nuevo: \n";
 	}
+
+	//Tamaño de los bloques a crear en CUDA
+	int TILE_WIDTH = obtenerTileWidth(anchura, altura);
+
 	//Bucle principal del juego
 	while (jugando) {
 
@@ -1000,9 +1069,9 @@ int main() {
 				}
 
 				if (seleccion == 1)
-					analisisTableroAutomatico(dificultad, tablero, anchura, altura);
+					analisisTableroAutomatico(dificultad, tablero, anchura, altura, TILE_WIDTH);
 				else
-					intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad);
+					intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad, TILE_WIDTH);
 			}
 
 			break;
