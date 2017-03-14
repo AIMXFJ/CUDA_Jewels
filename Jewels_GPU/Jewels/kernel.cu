@@ -9,47 +9,55 @@
 #include <fstream>
 
 //funcion para generar una jewel aleatoria, como la generacion inicial.
-int generarJewel(int dificultad) {
-	srand(time(NULL));
+/* Funciones para generar gemas aleatorias */
+/* Iniciador de seeds */
+__global__ void setup_kernel(curandState * state, unsigned long seed)
+{
+	int id = threadIdx.x;
+	curand_init(seed, id, 0, &state[id]);
+}
+
+/* Crear jewel usando globalState */
+__device__ float generate(curandState* globalState, int ind)
+{
+	curandState localState = globalState[ind];
+	float RANDOM = curand_uniform(&localState);
+	globalState[ind] = localState;
+	return RANDOM;
+}
+
+/* Funcion para generarJewel en CUDA */
+__device__ int generarJewelCUDA(curandState* globalState, int ind, int dificultad)
+{
 	switch (dificultad) {
-	case 1: {
-		int randJewel = rand() % 4 + 1;
-		return randJewel;
+	case 1:
+	{
+		return (int)1 + generate(globalState, ind) * 4;
 	}
 	case 2: {
-		int randJewel = rand() % 6 + 1;
-		return randJewel;
+		return (int)1 + generate(globalState, ind) * 6;
 	}
 	case 3: {
-		int randJewel = rand() % 8 + 1;
-		return randJewel;
+		return (int)1 + generate(globalState, ind) * 8;
 	}
 	}
 	return -1;
 }
 
-void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura) {
-	srand(time(NULL));
-	for (int i = 0; i < altura*anchura; i++) {
-		switch (dificultad) {
-		case 1: {
-			int randJewel = rand() % 4 + 1;
-			tablero[i] = randJewel;
-			break;
-		}
-		case 2: {
-			int randJewel = rand() % 6 + 1;
-			tablero[i] = randJewel;
-			break;
-		}
-		case 3: {
-			int randJewel = rand() % 8 + 1;
-			tablero[i] = randJewel;
-			break;
-		}
+/* Funcion para inicializar la matriz de gemas */
+__global__ void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura, curandState* globalState) {
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	if (tFila < altura)
+	{
+		if (tColumna < anchura)
+		{
+			tablero[tFila*anchura + tColumna] = generarJewelCUDA(globalState, tFila * anchura + tColumna, dificultad);
 		}
 	}
 }
+
+/* Funcion para imprimir el tablero en GPU */
 void printTablero(float* tablero, int anchura, int altura) {
 	for (int i = altura - 1; i >= 0; i--) {
 		printf("\n");
@@ -755,6 +763,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	}
 }
 
+/* Funcion que carga del archivo la anchura, altura y dificultad del tablero */
 bool precargar(int& anchura, int& altura, int& dificultad, char* fichero)
 {
 	std::ifstream fCarga(fichero);
@@ -774,6 +783,8 @@ bool precargar(int& anchura, int& altura, int& dificultad, char* fichero)
 	fCarga.close();
 	return true;
 }
+
+/* Funcion que carga el tablero guardado previamente */
 void cargar(int anchura, int altura, float*  tablero, char* fichero)
 {
 	char* array = (char*)malloc(anchura*altura + 1 + 3);
@@ -787,6 +798,7 @@ void cargar(int anchura, int altura, float*  tablero, char* fichero)
 	fCarga.close();
 }
 
+/* Funcion que guarda el tablero */
 void guardado(float* tablero, int anchura, int altura, int dificultad, char* fichero)
 {
 	//Sistema de guardado
@@ -804,139 +816,194 @@ void guardado(float* tablero, int anchura, int altura, int dificultad, char* fic
 	}
 	ficheroGuardado.close();
 }
-void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila) {
 
-	for (int iFila = 0; (iFila + fila) < altura; iFila++)
+/* Funcion que elimina una fila */
+__global__ void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila, curandState* globalState) {
+
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	float aux;
+
+	if ((tFila + fila) < altura)
 	{
-		for (int iColm = 0; iColm < anchura; iColm++)
+		if (tColumna < anchura)
 		{
-			if ((iFila + fila + 1) < altura)
+			if ((tFila + fila + 1) == altura)
 			{
-				tablero[(iFila + fila)*anchura + iColm] = tablero[(iFila + fila + 1)*altura + iColm];
+				tablero[(tFila + fila)*anchura + tColumna] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
 			}
 			else {
-				tablero[(iFila + fila)*anchura + iColm] = generarJewel(dificultad);
+				aux = tablero[(tFila + fila + 1)*anchura + tColumna];
+				tablero[(tFila + fila)*anchura + tColumna] = aux;
+
 			}
 		}
 	}
 }
 
-void bombaColumna(float* tablero, int anchura, int altura, int dificultad, int columna) {
+/* Funcion que elimina una columna */
+__global__ void bombaColumna(float* tablero, int anchura, int altura, int dificultad, int columna, curandState* globalState) {
 
-	for (int iFila = 0; iFila < altura; iFila++)
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	float aux;
+
+	if (tFila < altura)
 	{
-		for (int iColm = 0; (iColm + columna) < anchura; iColm++)
+		if ((tColumna + columna) < anchura)
 		{
-			if ((iColm + columna + 1) == anchura)
+			if ((tColumna + columna + 1) == anchura)
 			{
-				tablero[(iFila*anchura) + (iColm + columna)] = generarJewel(dificultad);
+				tablero[(tFila*anchura) + (tColumna + columna)] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
 			}
 			else {
-				tablero[(iFila*anchura) + (iColm + columna)] = tablero[(iFila*altura) + (iColm + columna + 1)];
+				aux = tablero[(tFila*anchura) + (tColumna + columna + 1)];
+				tablero[(tFila*anchura) + (tColumna + columna)] = aux;
 			}
 		}
 	}
 }
-void bombaRotarCPU(float* tablero, int anchura, int altura, int fila, int columna)
+
+__global__ void bombaRotarGPU1(float* tablero, int anchura, int altura)
+{
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	int fila = -1, columna = -1;
+	float aux[9];
+
+	if (tFila < altura)	{
+		if (tColumna < anchura)	{
+			if ((tFila - 1) < 0 || (tFila + 1) >= altura || (tColumna - 1) < 0 || (tColumna + 1) >= anchura) {}
+			else {
+				if (tFila*anchura + tColumna % 4 == 1) {
+					fila = tFila;
+					columna = tColumna;
+				}
+				if (fila != -1 && columna != -1)
+				{
+					aux[tFila * 3 + tColumna] = tablero[((fila + 1) - tFila) + ((columna + 1) - tColumna)*altura];
+					printf("%f", aux[tFila * 3 + tColumna]);
+					tablero[((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna)] = aux[tFila * 3 + tColumna];
+				}
+			}
+		}
+	}
+}
+
+__global__ void bombaRotarGPU(float* tablero, int anchura, int altura, int fila, int columna)
 {
 	float aux[9];
-	int index = 0;
-	for (int iColm = columna - 1; iColm <= columna + 1; iColm++)
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+
+	if (tFila < 3)
 	{
-		for (int iFila = fila + 1; iFila >= fila - 1; iFila--)
+		if (tColumna < 3)
 		{
-			aux[index] = tablero[iFila*anchura + iColm];
-			index++;
-		}
-	}
-	index = 0;
-	for (int iFila = 0; iFila < 3; iFila++)
-	{
-		for (int iColumna = 0; iColumna < 3; iColumna++)
-		{
-			tablero[(iFila + fila - 1)*anchura + (columna - 1) + iColumna] = aux[index];
-			index++;
+			aux[tFila * 3 + tColumna] = tablero[((fila + 1) - tFila) + ((columna + 1) - tColumna)*altura];
+			//printf("%f", aux[tFila * 3 + tColumna]);
+			tablero[((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna)] = aux[tFila * 3 + tColumna];
 		}
 	}
 }
-int main() {
+
+__global__ void bombaRotar(float* tablero_d, int anchura, int altura)
+{
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	if (tFila < altura && tColumna < anchura) {
+		if ((tFila - 1) < 0 || (tFila + 1) >= altura || (tColumna - 1) < 0 || (tColumna + 1) >= anchura)
+		{
+			/* Se entra cuando no se puede rotar */
+
+		}
+		else
+		{
+			if (tFila % 3 == 1 && tColumna % 3 == 1)
+			{
+				dim3 dimBlock(3, 3);
+				dim3 dimGrid(1, 1);
+				
+				bombaRotarGPU << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, tFila, tColumna);
+				//__syncthreads();
+			}
+		}
+	}
+}
+
+int main(int argc, char** argv) {
 	//Matriz de tamaño variable de floats, un array de Altura*Anchura
-	int anchura = 2;
-	int altura = 2;
-	int dificultad = 1;
+	int anchura, altura, dificultad, size, seleccion;
+	int jewel1_x, jewel1_y, accion;
+	char modo, ficheroGuardado[9] = "save.txt";;
 	bool automatico = true;
-	int TILE_WIDTH = 16;
-	int size;
-
-	char ficheroGuardado[9] = "save.txt";
-
-	float *tablero;
-	float* tablero_d;
-	bool jugando = true;
-
-	int eleccion = 2;
 	bool encontrado = false;
-	std::cout << "Desea cargar una partida guardada? 1.-SI   2.-NO\n";
-	std::cin >> eleccion;
-	if (eleccion == 1)
-	{
-		encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
-		std::cout << "Cargando Tablero de " << anchura << "x" << altura << " con dificultad: " << dificultad;
-		std::cout << std::endl;
-	}
-	if (!encontrado || (eleccion == 2))
-	{
-		std::cout << "Anchura del tablero: ";
-		std::cin >> anchura;
+	bool jugando = true;
+	float* tablero;
+	float* tablero_d;
 
-		std::cout << "Altura del tablero: ";
-		std::cin >> altura;
+	curandState* devStates;
 
-		std::cout << "Elija dificultad: \n1.-Facil \n2.-Media \n3.-Dificil\n";
-		std::cin >> dificultad;
-	}
-	int seleccion;
-	std::cout << "Automatico?   1.-SI   2.-NO\n";
-	std::cin >> seleccion;
+	/* Valores por argumento/
+	modo = argv[1][1];
+	dificultad = atoi(argv[2]);
+	anchura = atoi(argv[3]);
+	altura = atoi(argv[4]);*/
 
-	switch (seleccion) {
-	case 1: automatico = true; break;
-	case 2: automatico = false; break;
+	modo = 'a';
+	dificultad = 3;
+	anchura = 8;
+	altura = 6;
+	size = anchura*altura;
+
+	/* Establecer modo de juego */
+	switch (modo) {
+	case 'a': {automatico = true; break; }
+	case 'm': {automatico = false; break; }
 	default: printf("Valor no valido.\n"); return -1;
 	}
-	size = anchura*altura;
+
+	/* Inicializacion random en CUDA */
+	cudaMalloc(&devStates, size * sizeof(curandState));
+	/* Creacion de las Seeds */
+	setup_kernel << < 1, size >> > (devStates, unsigned(time(NULL)));
+
+	/* Reservar memoria para tablero y tablero_d */
 	tablero = (float*)malloc(size * sizeof(float));
-	cudaMalloc((void**)&tablero_d, size);
-	//Se inicializa la matriz
-	if (encontrado)
-	{
-		cargar(anchura, altura, tablero, ficheroGuardado);
-		std::cout << "Se ha cargado el Tablero: \n";
-	}
-	else {
-		generacionInicialRandomJewels(tablero, dificultad, anchura, altura);
-		std::cout << "Se crea un tablero nuevo: \n";
-	}
+	cudaMalloc((void**)&tablero_d, size * sizeof(float));
+
+	/* Inicializacion de la Matriz en CUDA*/
+	dim3 dimBlock(anchura, altura);
+	dim3 dimGrid(1, 1);
+	generacionInicialRandomJewels << < dimGrid, dimBlock >> > (tablero_d, dificultad, anchura, altura, devStates);
+	cudaMemcpy(tablero, tablero_d, size * sizeof(float), cudaMemcpyDeviceToHost);
+
 	//Bucle principal del juego
 	while (jugando) {
 
 		printTablero(tablero, anchura, altura);
 
-		int jewel1_x = 0;
-		int jewel1_y = 0;
-		int accion = 0;
+		jewel1_x = 0;
+		jewel1_y = 0;
+		accion = 0;
 
 		std::cout << "Acción a realizar:\n";
 		std::cout << "(1) Intercambiar Jewels\n";
-		std::cout << "(2) Usar una Bomba\n";
-		std::cout << "(3) Guardar partida\n";
-		std::cout << "(4) Exit\n";
+		std::cout << "(2) Guardar partida\n";
+		std::cout << "(3) Cargar partida\n";
+		std::cout << "(9) Usar una Bomba\n";
+		std::cout << "(0) Exit\n";
 		std::cout << "Elija accion: ";
 
 		std::cin >> accion;
 
-
 		switch (accion) {
+		/* Salir*/
+		case 0: {
+			goto Salir;
+			break;
+		}
+		/* Intercambio */
 		case 1: {
 
 			std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
@@ -999,24 +1066,52 @@ int main() {
 				}
 				}
 
+				intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad);
+
 				if (seleccion == 1)
 					analisisTableroAutomatico(dificultad, tablero, anchura, altura);
-				else
-					intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad);
 			}
 
 			break;
 		}
+		/* Guardar tablero */
 		case 2: {
-			// Bomba
-			int bomba = 0;
-			int fila = 0, columna = 0;
+			guardado(tablero, anchura, altura, dificultad, ficheroGuardado);
+			std::cout << "Guardado correcto.\n";
+			break;
+		}
+		/* Cargar tablero */
+		case 3: {
+			/* Precarga de tablero */
+			encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
+
+			if (encontrado)
+			{
+				/* Cargar tablero */
+				cargar(anchura, altura, tablero, ficheroGuardado);
+				std::cout << "Se ha cargado el Tablero: \n";
+			}
+			else {
+				std::cout << "No existe ninguna partida guardada.\n";
+			}
+			break;
+
+		}
+		/* Usar Bombas */
+		case 9: {
+			int bomba = 0, fila = 0, columna = 0;
 			std::cout << "Elija una bomba:";
+
+			/* CUDA */
+			dim3 blockDim(anchura, altura);
+			dim3 blockGrid(1, 1);
+			cudaMemcpy(tablero_d, tablero, size * sizeof(float), cudaMemcpyHostToDevice);
 
 			/* Bombas por tipo de dificultad */
 			switch (dificultad) {
+			/* Dificultad 1 */
 			case 1: {
-				std::cout << "(1) Bomba de fila ";
+				std::cout << "\n(1) Bomba de fila ";
 				std::cout << "\nEleccion: ";
 				std::cin >> bomba;
 
@@ -1025,14 +1120,15 @@ int main() {
 					printf("Bomba erronea.\n");
 					continue;
 				}
-				std::cout << "X: ";
+				std::cout << "Fila: ";
 				std::cin >> fila;
-				bombaFila(tablero, anchura, altura, dificultad, fila);
+				bombaFila << < dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, devStates);
 				break;
 			}
+			/* Dificultad 2 */
 			case 2: {
-				std::cout << "(1) Bomba de fila";
-				std::cout << "(2) Bomba de columna";
+				std::cout << "\n(1) Bomba de fila";
+				std::cout << "\n(2) Bomba de columna";
 				std::cout << "\nEleccion: ";
 				std::cin >> bomba;
 
@@ -1044,25 +1140,26 @@ int main() {
 				switch (bomba) {
 				case 1:
 				{
-					std::cout << "X: ";
+					std::cout << "Fila: ";
 					std::cin >> fila;
-					bombaFila(tablero, anchura, altura, dificultad, fila);
+					bombaFila << < dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, devStates);
 					break;
 				}
 				case 2:
 				{
-					std::cout << "Y: ";
+					std::cout << "Columna: ";
 					std::cin >> columna;
-					bombaColumna(tablero, anchura, altura, dificultad, columna);
+					bombaColumna << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, columna, devStates);
 					break;
 				}
 				}
 				break;
 			}
+			/* Dificultad 3 */
 			case 3: {
-				std::cout << "(1) Bomba de fila";
-				std::cout << "(2) Bomba de columna";
-				std::cout << "(3) Bomba de rotacion 3x3 (la jewel elegida es el centro)";
+				std::cout << "\n(1) Bomba de fila";
+				std::cout << "\n(2) Bomba de columna";
+				std::cout << "\n(3) Bomba de rotacion 3x3";
 				std::cout << "\nEleccion: ";
 				std::cin >> bomba;
 
@@ -1074,56 +1171,52 @@ int main() {
 				switch (bomba) {
 				case 1:
 				{
-					std::cout << "X: ";
+					std::cout << "Fila: ";
 					std::cin >> fila;
-					bombaFila(tablero, anchura, altura, dificultad, fila);
+					bombaFila << < dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, devStates);
 					break;
 				}
 				case 2:
 				{
-					std::cout << "Y: ";
+					std::cout << "Columna: ";
 					std::cin >> columna;
-					bombaColumna(tablero, anchura, altura, dificultad, columna);
+					bombaColumna << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, columna, devStates);
 					break;
 				}
-				case 3:
+				case 3: 
 				{
-					std::cout << "X: ";
-					std::cin >> fila;
-					std::cout << "Y: ";
-					std::cin >> columna;
-					if ((fila - 1) < 0 || (fila + 1) >= altura || (columna - 1) < 0 || (columna + 1) >= anchura)
+					for (int fila = 1; fila < anchura; fila += 3)
 					{
-						std::cout << "Rotacion no valida" << std::endl;
-					}
-					else
-					{
-						bombaRotarCPU(tablero, anchura, altura, fila, columna);
+						for (int columna = 1; columna < altura; columna += 3)
+						{
+							if ((fila - 1) < 0 || (fila + 1) >= altura || (columna - 1) < 0 || (columna + 1) >= anchura)
+							{
+								/* Se entra cuando no se puede rotar */
+							}
+							else
+							{
+								dim3 blockGrid(anchura/3, altura/3);
+								bombaRotar << < dimGrid, dimBlock >> > (tablero_d, anchura, altura);
+							}
+						}
 					}
 					break;
 				}
 				}
+
 				break;
 			}
 			}
+			/* Actualizar Tablero */
+			cudaMemcpy(tablero, tablero_d, size * sizeof(float), cudaMemcpyDeviceToHost);
 			break;
 		}
-		case 3: {
-			guardado(tablero, anchura, altura, dificultad, ficheroGuardado);
-			std::cout << "Guardado correcto.\n";
-			break;
 		}
-		case 4:
-		{
-			free(tablero);
-			cudaFree(tablero_d);
-			return 0;
-		}
-		}
-
 	}
 
+Salir:
 	free(tablero);
 	cudaFree(tablero_d);
+	cudaFree(devStates);
 	return 0;
 }

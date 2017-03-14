@@ -549,29 +549,6 @@ int main(int argc, char** argv) {
 	float *tablero;
 	bool jugando = true;
 
-	/*int eleccion = 2;
-	bool encontrado = false;
-	std::cout << "Desea cargar una partida guardada? 1.-SI   2.-NO\n";
-	std::cin >> eleccion;
-	if (eleccion == 1)
-	{
-		encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
-		std::cout << "Cargando Tablero de " << anchura << "x" << altura << " con dificultad: " << dificultad;
-		std::cout << std::endl;
-	}
-	if (!encontrado || (eleccion == 2))
-	{
-		std::cout << "Anchura del tablero: ";
-		std::cin >> anchura;
-
-		std::cout << "Altura del tablero: ";
-		std::cin >> altura;
-
-		std::cout << "Elija dificultad: \n1.-Facil \n2.-Media \n3.-Dificil\n";
-		std::cin >> dificultad;
-	}
-	;
-
 	/* Establecer automatico como modo de juego */
 	switch (modo) {
 	case 'a': {automatico = true; break; }
@@ -583,15 +560,7 @@ int main(int argc, char** argv) {
 	//Se inicializa la matriz
 
 	generacionInicialRandomJewels(tablero, dificultad, anchura, altura);
-	/*if (encontrado)
-	{
-		cargar(anchura, altura, tablero, ficheroGuardado);
-		std::cout << "Se ha cargado el Tablero: \n";
-	}
-	else {
-		generacionInicialRandomJewels(tablero, dificultad, anchura, altura);
-		std::cout << "Se crea un tablero nuevo: \n";
-	}*/
+
 	//Bucle principal del juego
 	while (jugando) {
 

@@ -56,44 +56,50 @@ int obtenerTileWidth(int anchura, int altura) {
 }
 
 //funcion para generar una jewel aleatoria, como la generacion inicial.
-int generarJewel(int dificultad) {
-	srand(time(NULL));
+/* Funciones para generar gemas aleatorias */
+/* Iniciador de seeds */
+__global__ void setup_kernel(curandState * state, unsigned long seed)
+{
+	int id = threadIdx.x;
+	curand_init(seed, id, 0, &state[id]);
+}
+
+/* Crear jewel usando globalState */
+__device__ float generate(curandState* globalState, int ind)
+{
+	curandState localState = globalState[ind];
+	float RANDOM = curand_uniform(&localState);
+	globalState[ind] = localState;
+	return RANDOM;
+}
+
+/* Funcion para generarJewel en CUDA */
+__device__ int generarJewelCUDA(curandState* globalState, int ind, int dificultad)
+{
 	switch (dificultad) {
-	case 1: {
-		int randJewel = rand() % 4 + 1;
-		return randJewel;
+	case 1:
+	{
+		return (int)1 + generate(globalState, ind) * 4;
 	}
 	case 2: {
-		int randJewel = rand() % 6 + 1;
-		return randJewel;
+		return (int)1 + generate(globalState, ind) * 6;
 	}
 	case 3: {
-		int randJewel = rand() % 8 + 1;
-		return randJewel;
+		return (int)1 + generate(globalState, ind) * 8;
 	}
 	}
 	return -1;
 }
 
-void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura) {
-	srand(time(NULL));
-	for (int i = 0; i < altura*anchura; i++) {
-		switch (dificultad) {
-		case 1: {
-			int randJewel = rand() % 4 + 1;
-			tablero[i] = randJewel;
-			break;
-		}
-		case 2: {
-			int randJewel = rand() % 6 + 1;
-			tablero[i] = randJewel;
-			break;
-		}
-		case 3: {
-			int randJewel = rand() % 8 + 1;
-			tablero[i] = randJewel;
-			break;
-		}
+/* Funcion para inicializar la matriz de gemas */
+__global__ void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura, curandState* globalState) {
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	if (tFila < altura)
+	{
+		if (tColumna < anchura)
+		{
+			tablero[tFila*anchura + tColumna] = generarJewelCUDA(globalState, tFila * anchura + tColumna, dificultad);
 		}
 	}
 }
@@ -522,35 +528,48 @@ void guardado(float* tablero, int anchura, int altura, int dificultad, char* fic
 	}
 	ficheroGuardado.close();
 }
-void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila) {
+/* Funcion que elimina una fila */
+__global__ void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila, curandState* globalState) {
 
-	for (int iFila = 0; (iFila + fila) < altura; iFila++)
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	float aux;
+
+	if ((tFila + fila) < altura)
 	{
-		for (int iColm = 0; iColm < anchura; iColm++)
+		if (tColumna < anchura)
 		{
-			if ((iFila + fila + 1) < altura)
+			if ((tFila + fila + 1) == altura)
 			{
-				tablero[(iFila + fila)*anchura + iColm] = tablero[(iFila + fila + 1)*altura + iColm];
+				tablero[(tFila + fila)*anchura + tColumna] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
 			}
 			else {
-				tablero[(iFila + fila)*anchura + iColm] = generarJewel(dificultad);
+				aux = tablero[(tFila + fila + 1)*anchura + tColumna];
+				tablero[(tFila + fila)*anchura + tColumna] = aux;
+
 			}
 		}
 	}
 }
 
-void bombaColumna(float* tablero, int anchura, int altura, int dificultad, int columna) {
+/* Funcion que elimina una columna */
+__global__ void bombaColumna(float* tablero, int anchura, int altura, int dificultad, int columna, curandState* globalState) {
 
-	for (int iFila = 0; iFila < altura; iFila++)
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	float aux;
+
+	if (tFila < altura)
 	{
-		for (int iColm = 0; (iColm + columna) < anchura; iColm++)
+		if ((tColumna + columna) < anchura)
 		{
-			if ((iColm + columna + 1) == anchura)
+			if ((tColumna + columna + 1) == anchura)
 			{
-				tablero[(iFila*anchura) + (iColm + columna)] = generarJewel(dificultad);
+				tablero[(tFila*anchura) + (tColumna + columna)] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
 			}
 			else {
-				tablero[(iFila*anchura) + (iColm + columna)] = tablero[(iFila*altura) + (iColm + columna + 1)];
+				aux = tablero[(tFila*anchura) + (tColumna + columna + 1)];
+				tablero[(tFila*anchura) + (tColumna + columna)] = aux;
 			}
 		}
 	}
