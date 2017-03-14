@@ -822,7 +822,6 @@ __global__ void bombaFila(float* tablero, int anchura, int altura, int dificulta
 
 	int tFila = threadIdx.y;
 	int tColumna = threadIdx.x;
-	float aux;
 
 	if ((tFila + fila) < altura)
 	{
@@ -833,8 +832,7 @@ __global__ void bombaFila(float* tablero, int anchura, int altura, int dificulta
 				tablero[(tFila + fila)*anchura + tColumna] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
 			}
 			else {
-				aux = tablero[(tFila + fila + 1)*anchura + tColumna];
-				tablero[(tFila + fila)*anchura + tColumna] = aux;
+				tablero[(tFila + fila)*anchura + tColumna] = tablero[(tFila + fila + 1)*anchura + tColumna];
 
 			}
 		}
@@ -846,7 +844,6 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 
 	int tFila = threadIdx.y;
 	int tColumna = threadIdx.x;
-	float aux;
 
 	if (tFila < altura)
 	{
@@ -857,8 +854,7 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 				tablero[(tFila*anchura) + (tColumna + columna)] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
 			}
 			else {
-				aux = tablero[(tFila*anchura) + (tColumna + columna + 1)];
-				tablero[(tFila*anchura) + (tColumna + columna)] = aux;
+				tablero[(tFila*anchura) + (tColumna + columna)] = tablero[(tFila*anchura) + (tColumna + columna + 1)];
 			}
 		}
 	}
@@ -900,9 +896,10 @@ __global__ void bombaRotarGPU(float* tablero, int anchura, int altura, int fila,
 	{
 		if (tColumna < 3)
 		{
-			aux[tFila * 3 + tColumna] = tablero[((fila + 1) - tFila) + ((columna + 1) - tColumna)*altura];
-			//printf("%f", aux[tFila * 3 + tColumna]);
+			aux[tFila + tColumna * 3] = tablero[((fila + 1) - tFila) *anchura + ((columna + 1) - tColumna)];
+			printf("%i-%i ", tFila + tColumna * 3, aux[tFila+tColumna*3]);
 			tablero[((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna)] = aux[tFila * 3 + tColumna];
+			printf("%i_%i ", ((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna), tFila * 3 + tColumna);
 		}
 	}
 }
@@ -924,7 +921,7 @@ __global__ void bombaRotar(float* tablero_d, int anchura, int altura)
 				dim3 dimBlock(3, 3);
 				dim3 dimGrid(1, 1);
 				
-				bombaRotarGPU << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, tFila, tColumna);
+				bombaRotarGPU << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, tFila, tColumna);
 				//__syncthreads();
 			}
 		}
@@ -952,14 +949,14 @@ int main(int argc, char** argv) {
 
 	modo = 'a';
 	dificultad = 3;
-	anchura = 8;
-	altura = 6;
+	anchura = 6;
+	altura = 3;
 	size = anchura*altura;
 
 	/* Establecer modo de juego */
 	switch (modo) {
-	case 'a': {automatico = true; break; }
-	case 'm': {automatico = false; break; }
+	case 'a': {seleccion = 1; break; }
+	case 'm': {seleccion = 2; break; }
 	default: printf("Valor no valido.\n"); return -1;
 	}
 

@@ -551,8 +551,8 @@ int main(int argc, char** argv) {
 
 	/* Establecer automatico como modo de juego */
 	switch (modo) {
-	case 'a': {automatico = true; break; }
-	case 'm': {automatico = false; break; }
+	case 'a': {seleccion = 1; break; }
+	case 'm': {seleccion = 2; break; }
 	default: printf("Valor no valido.\n"); return -1;
 	}
 	size = anchura*altura;
