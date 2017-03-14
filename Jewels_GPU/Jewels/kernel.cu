@@ -369,16 +369,18 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	cudaMemcpy(jewels_eliminadas_d, jewels_eliminadas, 2 * max * sizeof(float), cudaMemcpyHostToDevice);
 
 	int final = 0;
+	bool modif = false;
 
 	for (int i = 0; i < max * 2; i++) {
 		printf("\ni:%i valor:%f\n", i, jewels_eliminadas[i]);
 		if (jewels_eliminadas[i] < 0) {
 			final = i;
+			modif = true;
 			break;
 		}
 	}
 
-	if (final == 0) final = max * 2;
+	if (!modif) final = max * 2;
 
 	eliminarJewelsKernel << <dimGrid, dimBlock >> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final);
 

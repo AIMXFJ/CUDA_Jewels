@@ -177,17 +177,20 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	cudaMemcpy(jewels_eliminadas_d, jewels_eliminadas, 2 * max * sizeof(float), cudaMemcpyHostToDevice);
 
 	int final = 0;
+	bool modif = false;
 
-	//Calcula cual es el ultimo valor escrito de las jewels a eliminar, ya que puede haber posiciones no escritas
+	//Obtiene hasta donde hay valores aptos
 	for (int i = 0; i < max * 2; i++) {
+		printf("\ni:%i valor:%f\n", i, jewels_eliminadas[i]);
 		if (jewels_eliminadas[i] < 0) {
 			final = i;
+			modif = true;
 			break;
 		}
 	}
 
 	//En caso de que este completamente escrito
-	if (final == 0) final = max * 2;
+	if (!modif) final = max * 2;
 
 	//Cantidad de bloques de ancho de medida TILE_WIDTH
 	int anch = ceil(anchura / TILE_WIDTH);
