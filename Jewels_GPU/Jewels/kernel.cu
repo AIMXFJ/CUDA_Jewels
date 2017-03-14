@@ -864,25 +864,69 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 	}
 }
 
-void bombaRotarCPU(float* tablero, int anchura, int altura, int fila, int columna)
+__global__ void bombaRotarGPU1(float* tablero, int anchura, int altura)
 {
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	int fila = -1, columna = -1;
 	float aux[9];
-	int index = 0;
-	for (int iColm = columna - 1; iColm <= columna + 1; iColm++)
-	{
-		for (int iFila = fila + 1; iFila >= fila - 1; iFila--)
-		{
-			aux[index] = tablero[iFila*anchura + iColm];
-			index++;
+
+	if (tFila < altura)	{
+		if (tColumna < anchura)	{
+			if ((tFila - 1) < 0 || (tFila + 1) >= altura || (tColumna - 1) < 0 || (tColumna + 1) >= anchura) {}
+			else {
+				if (tFila*anchura + tColumna % 4 == 1) {
+					fila = tFila;
+					columna = tColumna;
+				}
+				if (fila != -1 && columna != -1)
+				{
+					aux[tFila * 3 + tColumna] = tablero[((fila + 1) - tFila) + ((columna + 1) - tColumna)*altura];
+					printf("%f", aux[tFila * 3 + tColumna]);
+					tablero[((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna)] = aux[tFila * 3 + tColumna];
+				}
+			}
 		}
 	}
-	index = 0;
-	for (int iFila = 0; iFila < 3; iFila++)
+}
+
+__global__ void bombaRotarGPU(float* tablero, int anchura, int altura, int fila, int columna)
+{
+	float aux[9];
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+
+	if (tFila < 3)
 	{
-		for (int iColumna = 0; iColumna < 3; iColumna++)
+		if (tColumna < 3)
 		{
-			tablero[(iFila + fila - 1)*anchura + (columna - 1) + iColumna] = aux[index];
-			index++;
+			aux[tFila * 3 + tColumna] = tablero[((fila + 1) - tFila) + ((columna + 1) - tColumna)*altura];
+			//printf("%f", aux[tFila * 3 + tColumna]);
+			tablero[((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna)] = aux[tFila * 3 + tColumna];
+		}
+	}
+}
+
+__global__ void bombaRotar(float* tablero_d, int anchura, int altura)
+{
+	int tFila = threadIdx.y;
+	int tColumna = threadIdx.x;
+	if (tFila < altura && tColumna < anchura) {
+		if ((tFila - 1) < 0 || (tFila + 1) >= altura || (tColumna - 1) < 0 || (tColumna + 1) >= anchura)
+		{
+			/* Se entra cuando no se puede rotar */
+
+		}
+		else
+		{
+			if (tFila % 3 == 1 && tColumna % 3 == 1)
+			{
+				dim3 dimBlock(3, 3);
+				dim3 dimGrid(1, 1);
+				
+				bombaRotarGPU << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, tFila, tColumna);
+				//__syncthreads();
+			}
 		}
 	}
 }
@@ -900,12 +944,16 @@ int main(int argc, char** argv) {
 
 	curandState* devStates;
 
-	/* Valores por argumento*/
+	/* Valores por argumento/
 	modo = argv[1][1];
 	dificultad = atoi(argv[2]);
 	anchura = atoi(argv[3]);
-	altura = atoi(argv[4]);
+	altura = atoi(argv[4]);*/
 
+	modo = 'a';
+	dificultad = 3;
+	anchura = 8;
+	altura = 6;
 	size = anchura*altura;
 
 	/* Establecer modo de juego */
@@ -1147,7 +1195,8 @@ int main(int argc, char** argv) {
 							}
 							else
 							{
-								bombaRotarCPU(tablero, anchura, altura, fila, columna);
+								dim3 blockGrid(anchura/3, altura/3);
+								bombaRotar << < dimGrid, dimBlock >> > (tablero_d, anchura, altura);
 							}
 						}
 					}
