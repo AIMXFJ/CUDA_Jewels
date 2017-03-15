@@ -521,14 +521,12 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 	{
 		if ((tColumna + columna) < anchura)
 		{
-			//printf("%i f: %i x %i + %i", (tFila*anchura + tColumna), tFila, anchura, tColumna);
-			if ((tColumna + columna + 1) == anchura)
+			if ((columna - tColumna - 1) < 0)
 			{
-				tablero[(tFila*anchura) + (tColumna + columna)] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
-				//printf("%i-%f-", (tFila*anchura) + (tColumna + columna), tablero[(tFila*anchura) + (tColumna + columna)]);
+				tablero[(tFila*anchura) + (columna - tColumna)] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
 			}
 			else {
-				tablero[(tFila*anchura) + (tColumna + columna)] = tablero[(tFila*anchura) + (tColumna + columna + 1)];
+				tablero[(tFila*anchura) + (columna - tColumna)] = tablero[(tFila*anchura) + (columna - tColumna - 1)];
 			}
 		}
 	}
@@ -536,7 +534,6 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 
 __global__ void bombaRotarGPU(float* tablero, int anchura, int altura, int fila, int columna)
 {
-	__shared__ int aux[9];
 	int tFila = threadIdx.y;
 	int tColumna = threadIdx.x;
 
@@ -544,15 +541,7 @@ __global__ void bombaRotarGPU(float* tablero, int anchura, int altura, int fila,
 	{
 		if (tColumna < 3)
 		{
-
-			//aux[tFila + tColumna * 3] = tablero[((fila + 1) - tFila)*anchura + ((columna + 1) - tColumna)];
-			//tablero[(fila + 1 - tColumna)*anchura + (columna - 1 + tFila)] = aux[tFila + tColumna * 3];
-
-
-			/* Memoria compartida */
-			aux[tFila + tColumna * 3] = tablero[((fila + 1) - tFila)*anchura + ((columna + 1) - tColumna)];
-			__syncthreads();
-			tablero[((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna)] = aux[tFila * 3 + tColumna];
+			tablero[(fila + 1 - tColumna)*anchura + (columna - 1 + tFila)] = tablero[((fila + 1) - tFila)*anchura + ((columna + 1) - tColumna)];
 		}
 	}
 }
