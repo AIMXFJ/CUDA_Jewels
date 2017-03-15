@@ -158,31 +158,6 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 
 	cudaMemcpy(tablero, tablero_d, size, cudaMemcpyDeviceToHost);
 
-	//Se analiza y se añaden jewels nuevas en las posiciones vacias (-1)
-	/*
-	for (int k = 0; k < tam; k++) {
-		if (tablero[k] == -1) {
-			srand(time(NULL));
-			switch (dificultad) {
-			case 1: {
-				int randJewel = rand() % 4 + 1;
-				tablero[k] = randJewel;
-				break;
-			}
-			case 2: {
-				int randJewel = rand() % 6 + 1;
-				tablero[k] = randJewel;
-				break;
-			}
-			case 3: {
-				int randJewel = rand() % 8 + 1;
-				tablero[k] = randJewel;
-				break;
-			}
-			};
-		}
-	}*/
-
 	//Libera memoria
 	cudaFree(tablero_d);
 	cudaFree(jewels_eliminadas_d);
