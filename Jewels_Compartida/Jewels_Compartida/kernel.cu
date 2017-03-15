@@ -132,9 +132,7 @@ __global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, flo
 
 	//Array dinamico en memoria compartida, velocidad de acceso mucho mayor que con global
 	int tam = anchura*altura;
-	extern __shared__ float tablero_aux_shared[];
-
-	float* tablero_shared = tablero_aux_shared;
+	extern __shared__ float tablero_shared[];
 
 	//Entre todos los hilos, los cuales ponen su posicion en el auxiliar compartido, rellenan por completo el auxiliar
 	tablero_shared[tx + ty*anchura] = tablero_aux_d[tx + ty*anchura];
@@ -217,7 +215,7 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
 	dim3 dimGrid(alt, anch);
 
-	eliminarJewelsKernel << <dimGrid, dimBlock>> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final, TILE_WIDTH, globalState);
+	eliminarJewelsKernel << <dimGrid, dimBlock, anchura * altura * sizeof(float)>> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final, TILE_WIDTH, globalState);
 
 	//Se recupera el tablero actualizado
 	cudaMemcpy(tablero, tablero_d, size, cudaMemcpyDeviceToHost);
@@ -383,9 +381,7 @@ __global__ void analisisTableroAutomaticoKernel(float *tablero_d, float *aux_d, 
 	ty += block_y * TILE_WIDTH;
 
 	//Array dinamico en memoria compartida, velocidad de accesoo mucho mayor que con global
-	extern __shared__ float tablero_aux_shared[];
-
-	float* tablero_shared = tablero_aux_shared;
+	extern __shared__ float tablero_shared[];
 
 	//Entre todos los hilos, rellenan por completo el auxiliar en memoria compartida
 	tablero_shared[tx + ty*anchura] = aux_d[tx + ty*anchura];
@@ -472,7 +468,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 
 	//Inicio del kernel
 
-	analisisTableroAutomaticoKernel << <dimGrid, dimBlock, size >> > (tablero_d, aux_d, dificultad, anchura, altura, TILE_WIDTH, globalState);
+	analisisTableroAutomaticoKernel << <dimGrid, dimBlock, anchura * altura * sizeof(float) >> > (tablero_d, aux_d, dificultad, anchura, altura, TILE_WIDTH, globalState);
 
 	//Transfiere el resultado de la GPU al host
 	cudaMemcpy(aux, aux_d, size, cudaMemcpyDeviceToHost);
