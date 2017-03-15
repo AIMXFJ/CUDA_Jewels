@@ -442,6 +442,7 @@ bool precargar(int& anchura, int& altura, int& dificultad, char* fichero)
 	fCarga.close();
 	return true;
 }
+
 void cargar(int anchura, int altura, float*  tablero, char* fichero)
 {
 	char* array = (char*)malloc(anchura*altura + 1 + 3);
@@ -472,6 +473,7 @@ void guardado(float* tablero, int anchura, int altura, int dificultad, char* fic
 	}
 	ficheroGuardado.close();
 }
+
 void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila) {
 
 	for (int iFila = 0; (iFila + fila) < altura; iFila++)
@@ -493,18 +495,19 @@ void bombaColumna(float* tablero, int anchura, int altura, int dificultad, int c
 
 	for (int iFila = 0; iFila < altura; iFila++)
 	{
-		for (int iColm = 0; (iColm + columna) < anchura; iColm++)
+		for (int iColm = 0; (columna - iColm) > 0; iColm++)
 		{
-			if ((iColm + columna + 1) == anchura)
+			if ((columna - iColm - 1) < 0)
 			{
-				tablero[(iFila*anchura) + (iColm + columna)] = generarJewel(dificultad);
+				tablero[(iFila*anchura) + (columna - iColm)] = generarJewel(dificultad);
 			}
 			else {
-				tablero[(iFila*anchura) + (iColm + columna)] = tablero[(iFila*altura) + (iColm + columna + 1)];
+				tablero[(iFila*anchura) + (columna - iColm)] = tablero[(iFila*altura) + (columna - iColm - 1)];
 			}
 		}
 	}
 }
+
 void bombaRotarCPU(float* tablero, int anchura, int altura, int fila, int columna)
 {
 	float aux[9];
@@ -527,6 +530,7 @@ void bombaRotarCPU(float* tablero, int anchura, int altura, int fila, int column
 		}
 	}
 }
+
 int main(int argc, char** argv) {
 	//Matriz de tamaño variable de floats, un array de Altura*Anchura
 	int anchura;
@@ -539,26 +543,46 @@ int main(int argc, char** argv) {
 	char ficheroGuardado[9] = "save.txt";
 	bool encontrado = false;
 	int seleccion;
-	/* Valores por argumento*/
 
-	modo = argv[1][1];
-	dificultad = atoi(argv[2]);
-	anchura = atoi(argv[3]);
-	altura = atoi(argv[4]);
-	
 	float *tablero;
+	/* Valores por argumento*/
+	if (argc == 1)
+	{
+		std::cout << "Anchura del tablero: ";
+		std::cin >> anchura;
+
+		std::cout << "Altura del tablero: ";
+		std::cin >> altura;
+
+		std::cout << "Elija dificultad: \n1.-Facil \n2.-Media \n3.-Dificil\n";
+		std::cin >> dificultad;
+
+		int seleccion;
+		std::cout << "Automatico?   1.-SI   2.-NO\n";
+		std::cin >> seleccion;
+	}
+	else
+	{
+		modo = argv[1][1];
+		dificultad = atoi(argv[2]);
+		anchura = atoi(argv[3]);
+		altura = atoi(argv[4]);
+
+		switch (modo) {
+		case 'a': {seleccion = 1; break; }
+		case 'm': {seleccion = 2; break; }
+		default: printf("Valor no valido.\n"); return -1;
+		}
+	}
+	
 	bool jugando = true;
 
 	/* Establecer automatico como modo de juego */
-	switch (modo) {
-	case 'a': {seleccion = 1; break; }
-	case 'm': {seleccion = 2; break; }
-	default: printf("Valor no valido.\n"); return -1;
-	}
+	
 	size = anchura*altura;
 	tablero = (float*)malloc(size * sizeof(float));
-	//Se inicializa la matriz
 
+	//Se inicializa la matriz
 	generacionInicialRandomJewels(tablero, dificultad, anchura, altura);
 
 	//Bucle principal del juego
