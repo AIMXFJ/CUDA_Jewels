@@ -349,7 +349,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	float* jewels_eliminadas = (float*)malloc(2 * max * sizeof(float));
 
 	//Tablero auxiliar para la toma del mejor caso
-	float* aux_tablero = (float*)malloc(altura * anchura * sizeof(float));
+	float* aux_tablero = (float*)malloc(size * sizeof(float));
 
 	for (int i = 0; i < max; i++) {
 		jewels_eliminadas[i] = -1;
@@ -396,12 +396,6 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 		}
 	}
 
-	//printf("\nTablero Aux Automatico:\n");
-	//printTablero(aux_tablero, anchura, altura);
-
-
-	//printf("\nMejores valores: x:%i  y:%i  valor:%i\n",x_mejor,y_mejor,valor_mejor);
-
 	intercambiarPosiciones(tablero, x_mejor, y_mejor, 4, anchura, altura, 1, dificultad);
 
 	//Se puede eliminar
@@ -425,53 +419,91 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 
 bool precargar(int& anchura, int& altura, int& dificultad, char* fichero)
 {
+	std::ifstream fAnchura("anchura.txt");
+	std::ifstream fAltura("altura.txt");
+	std::ifstream fDificultad("dificultad.txt");
 	std::ifstream fCarga(fichero);
-	char tam[4];
+
+	if (!fAnchura.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
+	if (!fAltura.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
+	if (!fDificultad.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
 	if (!fCarga.is_open())
 	{
 		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
 		return false;
 	}
+	fAnchura >> anchura;
+	fAltura >> altura;
+	fDificultad >> dificultad;
 
-	fCarga.getline(tam, 4);
-
-	anchura = (int)tam[0] - 48;
-	altura = (int)tam[1] - 48;
-	dificultad = (int)tam[2] - 48;
-
+	fAnchura.close();
+	fAltura.close();
+	fDificultad.close();
 	fCarga.close();
 	return true;
 }
 
 void cargar(int anchura, int altura, float*  tablero, char* fichero)
 {
-	char* array = (char*)malloc(anchura*altura + 1 + 3);
+	int aux;
+	char* array = (char*)malloc(anchura*altura + 1);
 	std::ifstream fCarga(fichero);
-	fCarga.getline(array, (anchura*altura + 1 + 3));
+	fCarga.getline(array, anchura*altura + 1);
+
 	for (int i = 0; i < anchura*altura; i++)
 	{
-		tablero[i] = array[i + 3] - 48;
+		aux = (array[i] - 48);
+		tablero[i] = (float)aux;
 	}
 	free(array);
 	fCarga.close();
+	
 }
 
 void guardado(float* tablero, int anchura, int altura, int dificultad, char* fichero)
 {
 	//Sistema de guardado
 	std::ofstream ficheroGuardado;
+	std::ofstream ficheroAnchura;
+	std::ofstream ficheroAltura;
+	std::ofstream ficheroDificultad;
+	/* Abrirlos */
 	ficheroGuardado.open(fichero);
+	ficheroAnchura.open("Anchura.txt");
+	ficheroAltura.open("Altura.txt");
+	ficheroDificultad.open("Dificultad.txt");
+
+	/* Limpiar el contenido */
 	ficheroGuardado.clear();
+	ficheroAnchura.clear();
+	ficheroAltura.clear();
+	ficheroDificultad.clear();
+
 	/* Almacenar anchura y altura*/
-	ficheroGuardado << anchura;
-	ficheroGuardado << altura;
-	ficheroGuardado << dificultad;
+	ficheroAnchura << anchura;
+	ficheroAltura << altura;
+	ficheroDificultad << dificultad;
 	/* Almacenar Resto */
 	for (int index = 0; index < anchura*altura; index++)
 	{
 		ficheroGuardado << tablero[index];
 	}
 	ficheroGuardado.close();
+	ficheroAnchura.close();
+	ficheroAltura.close();
+	ficheroDificultad.close();
 }
 
 void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila) {
@@ -482,6 +514,7 @@ void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila
 		{
 			if ((iFila + fila + 1) < altura)
 			{
+				
 				tablero[(iFila + fila)*anchura + iColm] = tablero[(iFila + fila + 1)*altura + iColm];
 			}
 			else {
@@ -557,7 +590,6 @@ int main(int argc, char** argv) {
 		std::cout << "Elija dificultad: \n1.-Facil \n2.-Media \n3.-Dificil\n";
 		std::cin >> dificultad;
 
-		int seleccion;
 		std::cout << "Automatico?   1.-SI   2.-NO\n";
 		std::cin >> seleccion;
 	}
@@ -608,75 +640,81 @@ int main(int argc, char** argv) {
 		case 0: {
 			free(tablero);
 			return 0;
+			break;
 		}
 		case 1: {
 
-			std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
-			std::cout << "X: ";
-			std::cin >> jewel1_x;
-			std::cout << "Y: ";
-			std::cin >> jewel1_y;
+			if (seleccion == 2)
+			{
+				std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
+				std::cout << "Columna: ";
+				std::cin >> jewel1_x;
+				std::cout << "Fila: ";
+				std::cin >> jewel1_y;
 
-			if (!((jewel1_x < anchura) && (jewel1_x >= 0) && (jewel1_y < altura) && (jewel1_y >= 0))) {
-				printf("Posicion erronea.\n");
-				continue;
-			}
-
-			int direccion = 0;
-			std::cout << "Direccion a seguir para intercambio de posiciones: \n 1.-Arriba\n 2.-Abajo\n 3.-Izquierda\n 4.-Derecha";
-			std::cin >> direccion;
-
-			if (direccion > 4 && direccion > 1) {
-				printf("Direccion erronea.\n");
-				continue;
-			}
-			else {
-				switch (direccion)
-				{
-				case 1: //Arriba
-				{
-					if (jewel1_y == altura)
-					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
-					}
-					break;
-				}
-				case 2: //Abajo
-				{
-					if (jewel1_y == 0)
-					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
-					}
-					break;
-				}
-				case 3: //Izquierda
-				{
-					if (jewel1_x == 0)
-					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
-					}
-					break;
-				}
-				case 4: //Derecha
-				{
-					if (jewel1_x == anchura - 1)
-					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
-					}
-					break;
-				}
+				if (!((jewel1_x < anchura) && (jewel1_x >= 0) && (jewel1_y < altura) && (jewel1_y >= 0))) {
+					printf("Posicion erronea.\n");
+					continue;
 				}
 
+				int direccion = 0;
+				std::cout << "Direccion a seguir para intercambio de posiciones: \n 1.-Arriba\n 2.-Abajo\n 3.-Izquierda\n 4.-Derecha\n";
+				std::cin >> direccion;
+
+				if (direccion > 4 && direccion > 1) {
+					printf("Direccion erronea.\n");
+					continue;
+				}
+				else {
+					switch (direccion)
+					{
+					case 1: //Arriba
+					{
+						if (jewel1_y == altura)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
+					}
+					case 2: //Abajo
+					{
+						if (jewel1_y == 0)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
+					}
+					case 3: //Izquierda
+					{
+						if (jewel1_x == 0)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
+					}
+					case 4: //Derecha
+					{
+						if (jewel1_x == anchura - 1)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
+					}
+					}
+				}
+				/* Intercambiar posiciones */
 				intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad);
 
-				if (seleccion == 1)
-					analisisTableroAutomatico(dificultad, tablero, anchura, altura);
 			}
-
+			else if (seleccion == 1)
+			{
+				/* Analisis automatico */
+				analisisTableroAutomatico(dificultad, tablero, anchura, altura);
+			}
 			break;
 		}
 		case 2: {
@@ -692,7 +730,11 @@ int main(int argc, char** argv) {
 			if (encontrado)
 			{
 				/* Cargar tablero */
+				free(tablero);
+				tablero = (float*)malloc((anchura*altura) * sizeof(float));
 				cargar(anchura, altura, tablero, ficheroGuardado);
+				std::cout << "Automatico?   1.-SI   2.-NO\n";
+				std::cin >> seleccion;
 				std::cout << "Se ha cargado el Tablero: \n";
 			}
 			else {
