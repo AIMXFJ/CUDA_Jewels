@@ -1,40 +1,45 @@
-﻿  
-  C:\Users\Altehon\Documents\TEST\CUDA_Jewels\Jewels_GPU\Jewels>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\nvcc.exe" -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\x86_amd64"  -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include"  -G   --keep-dir x64\Debug -maxrregcount=0  --machine 64 --compile   -g   -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /FS /Zi /RTC1 /MDd " -o x64\Debug\kernel.cu.obj "C:\Users\Altehon\Documents\TEST\CUDA_Jewels\Jewels_GPU\Jewels\kernel.cu" -clean 
-CUDACOMPILE : nvcc warning : The 'compute_20', 'sm_20', and 'sm_21' architectures are deprecated, and may be removed in a future release (Use -Wno-deprecated-gpu-targets to suppress warning).
-  kernel.cu
-  Compiling CUDA source file kernel.cu...
+﻿  Compiling CUDA source file kernel.cu...
   
   C:\Users\Altehon\Documents\TEST\CUDA_Jewels\Jewels_GPU\Jewels>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\nvcc.exe" -gencode=arch=compute_35,code=\"sm_35,compute_35\" --use-local-env --cl-version 2015 -ccbin "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\x86_amd64" -rdc=true -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include" -I"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\include"  -G   --keep-dir x64\Debug -maxrregcount=0  --machine 64 --compile -cudart static  -g   -DWIN32 -DWIN64 -D_DEBUG -D_CONSOLE -D_MBCS -Xcompiler "/EHsc /W3 /nologo /Od /FS /Zi /RTC1 /MDd " -o x64\Debug\kernel.cu.obj "C:\Users\Altehon\Documents\TEST\CUDA_Jewels\Jewels_GPU\Jewels\kernel.cu" 
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(313): warning : variable "max" was set but never used
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(712): warning : variable "jewels_eliminadas_d" was declared but never referenced
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(1007): warning : statement is unreachable
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(942): warning : variable "automatico" was declared but never referenced
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(313): warning : variable "max" was set but never used
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(712): warning : variable "jewels_eliminadas_d" was declared but never referenced
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(1007): warning : statement is unreachable
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(942): warning : variable "automatico" was declared but never referenced
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(59): warning : missing return statement at end of non-void function "obtenerTileWidth"
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(130): warning : variable "max" was set but never used
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(173): warning : variable "tam" was declared but never referenced
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(438): warning : variable "jewels_eliminadas_d" was declared but never referenced
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(591): warning : variable "aux" was declared but never referenced
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(661): warning : variable "automatico" was set but never used
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(59): warning : missing return statement at end of non-void function "obtenerTileWidth"
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(130): warning : variable "max" was set but never used
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(173): warning : variable "tam" was declared but never referenced
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(438): warning : variable "jewels_eliminadas_d" was declared but never referenced
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(591): warning : variable "aux" was declared but never referenced
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(661): warning : variable "automatico" was set but never used
   kernel.cu
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(391): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(395): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(400): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(405): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(593): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(594): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(598): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(599): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(603): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(604): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(641): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(642): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(646): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(647): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(651): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(652): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(698): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(701): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(760): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(712): warning C4101: 'jewels_eliminadas_d': unreferenced local variable
-C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(801): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(15): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(16): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(207): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(210): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(331): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(332): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(336): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(337): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(341): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(342): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(373): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(374): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(378): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(379): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(383): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(384): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(424): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(427): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(472): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(475): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(496): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(438): warning C4101: 'jewels_eliminadas_d': unreferenced local variable
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(539): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(708): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+C:/Users/Altehon/Documents/TEST/CUDA_Jewels/Jewels_GPU/Jewels/kernel.cu(711): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+c:\users\altehon\documents\test\cuda_jewels\jewels_gpu\jewels\kernel.cu(59): warning C4715: 'obtenerTileWidth': not all control paths return a value
   
   C:\Users\Altehon\Documents\TEST\CUDA_Jewels\Jewels_GPU\Jewels>"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\bin\nvcc.exe" -dlink -o x64\Debug\Jewels_GPU.device-link.obj -Xcompiler "/EHsc /W3 /nologo /Od /Zi /RTC1 /MDd " -L"C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v8.0\lib\x64" cudart.lib kernel32.lib cudadevrt.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib  -gencode=arch=compute_35,code=sm_35 -G --machine 64 x64\Debug\kernel.cu.obj 
   cudart.lib

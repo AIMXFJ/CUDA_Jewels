@@ -118,7 +118,7 @@ void printTablero(float* tablero, int anchura, int altura) {
 
 /*Recibe las coordenadas de las jewels a eliminar y mueve las filas que tiene que bajar a partir de ellas, emplea
 una copia del tablero para evitar race conditions*/
-__global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, float* jewels_eliminadas_d, int dificultad, int anchura, int altura, int final, int TILE_WIDTH) {
+__global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, float* jewels_eliminadas_d, int dificultad, int anchura, int altura, int final, int TILE_WIDTH, curandState* globalState) {
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
 	int block_x = blockIdx.x;
@@ -128,44 +128,44 @@ __global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, flo
 	tx += block_x * TILE_WIDTH;
 	ty += block_y * TILE_WIDTH;
 	int max = 0;
-	
+
 	if (altura >= anchura) max = altura;
 	else max = anchura;
-	
+
 	if (jewels_eliminadas_d[0] != jewels_eliminadas_d[2] && tx >= jewels_eliminadas_d[0] && tx <= jewels_eliminadas_d[final - 2] && ty >= jewels_eliminadas_d[1]) {
 		if (ty + 1 < altura) {
-			
+
 			float value = tablero_aux_d[tx + (ty + 1)*anchura];
-			
+
 			tablero_d[tx + (ty)*(anchura)] = value;
-			
+
 		}
 		else {
-			
-			tablero_d[tx + ty*anchura] = -1;
-			
+
+			tablero_d[tx + ty*anchura] = generarJewelCUDA(globalState, tx + ty*anchura, dificultad);
+
 		}
 	}
 	else {
-		
+
 		if (ty < altura && tx == jewels_eliminadas_d[0] && ty > jewels_eliminadas_d[1]) {
-			
+
 			float value = tablero_aux_d[tx + (ty)*anchura];
-			
+
 			tablero_d[tx + (ty - final / 2)*(anchura)] = value;
-			
+
 		}
-		
+
 		if (ty >= altura - final / 2 && ty < altura && tx == jewels_eliminadas_d[0]) {
-			
-			tablero_d[tx + (ty)*anchura] = -1;
-			
+
+			tablero_d[tx + (ty)*anchura] = generarJewelCUDA(globalState, tx + ty*anchura, dificultad);
+
 		}
 	}
 }
 
 /*Funcion que prepara y llama el kernel con su mismo nombre, genera todos los datos necesarios*/
-void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, int anchura, int altura, int TILE_WIDTH) {
+void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, int anchura, int altura, int TILE_WIDTH, curandState* globalState) {
 	float *tablero_d;
 	float *jewels_eliminadas_d;
 	float *tablero_aux_d;
@@ -212,37 +212,38 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	//Configuracion de ejecucion
 	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
 	dim3 dimGrid(alt, anch);
-	
-	eliminarJewelsKernel << <dimGrid, dimBlock >> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final, TILE_WIDTH);
-	
+
+	eliminarJewelsKernel << <dimGrid, dimBlock >> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final, TILE_WIDTH, globalState);
+
 	//Se recupera el tablero actualizado
-	
+
 	cudaMemcpy(tablero, tablero_d, size, cudaMemcpyDeviceToHost);
-	
+
 	//Se analiza y se añaden jewels nuevas en las posiciones vacias (-1)
+	/*
 	for (int k = 0; k < tam; k++) {
-		if (tablero[k] == -1) {
-			srand(time(NULL));
-			switch (dificultad) {
-			case 1: {
-				int randJewel = rand() % 4 + 1;
-				tablero[k] = randJewel;
-				break;
-			}
-			case 2: {
-				int randJewel = rand() % 6 + 1;
-				tablero[k] = randJewel;
-				break;
-			}
-			case 3: {
-				int randJewel = rand() % 8 + 1;
-				tablero[k] = randJewel;
-				break;
-			}
-			};
-		}
+	if (tablero[k] == -1) {
+	srand(time(NULL));
+	switch (dificultad) {
+	case 1: {
+	int randJewel = rand() % 4 + 1;
+	tablero[k] = randJewel;
+	break;
 	}
-	
+	case 2: {
+	int randJewel = rand() % 6 + 1;
+	tablero[k] = randJewel;
+	break;
+	}
+	case 3: {
+	int randJewel = rand() % 8 + 1;
+	tablero[k] = randJewel;
+	break;
+	}
+	};
+	}
+	}*/
+
 	//Libera memoria
 	cudaFree(tablero_d);
 	cudaFree(jewels_eliminadas_d);
@@ -286,7 +287,7 @@ __global__ void analisisTableroAutomaticoKernel(float *tablero_d, float *aux_d, 
 }
 
 //Analiza el movimiento manual, usando las coordenadas de la nueva posicion de la jewel seleccionada
-void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura, int x, int y, int TILE_WIDTH) {
+void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura, int x, int y, int TILE_WIDTH, curandState* globalState) {
 	int max = 0;
 	int size = anchura*altura;
 
@@ -387,12 +388,12 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 	}
 
 	//Las elimina
-	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura, TILE_WIDTH);
+	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura, TILE_WIDTH, globalState);
 	free(jewels_eliminadas);
 }
 
 //Intercambia la jewel seleccionadas con la jewel en la dirección indicada
-void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura, int seleccion, int dificultad, int TILE_WIDTH) {
+void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura, int seleccion, int dificultad, int TILE_WIDTH, curandState* globalState) {
 	int jewel2_x = jewel1_x;
 	int jewel2_y = jewel1_y;
 	switch (direccion)
@@ -426,11 +427,11 @@ void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int dire
 	tablero[jewel1_x + jewel1_y*anchura] = aux1;
 
 	//Analiza el movimiento para ver si se pueden eliminar jewels
-	analisisTableroManual(dificultad, tablero, anchura, altura, jewel2_x, jewel2_y, TILE_WIDTH);
+	analisisTableroManual(dificultad, tablero, anchura, altura, jewel2_x, jewel2_y, TILE_WIDTH, globalState);
 }
 
 //Analiza la mejor opcion y la ejecuta en funcion de lo que devuelve el kernel
-void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int altura, int TILE_WIDTH) {
+void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int altura, int TILE_WIDTH, curandState* globalState) {
 	float *tablero_d;
 	float *aux_d;
 	float *aux;
@@ -444,27 +445,27 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	else max = anchura;
 
 	//Solo se eliminan max jewels, 2 coordenadas por jewel = 2 * max posiciones
-	
+
 	float* jewels_eliminadas = (float*)malloc(2 * max * sizeof(float));
 	aux = (float*)malloc(size);
-	
+
 	for (int i = 0; i < max; i++) {
 		jewels_eliminadas[i] = -1;
 	}
-	
+
 	//Solo se cuenta la jewel que se escoge, sigue siendo menor que 3
 	for (int p = 0; p < size1; p++) {
 		aux[p] = 1;
 	}
-	
+
 	//Tablero a GPU
 	cudaMalloc((void**)&tablero_d, size);
-	
+
 	cudaMemcpy(tablero_d, tablero, size, cudaMemcpyHostToDevice);
 	//Auxiliar de conteo a GPU
-	
+
 	cudaMalloc((void**)&aux_d, size);
-	
+
 	cudaMemcpy(aux_d, aux, size, cudaMemcpyHostToDevice);
 
 	//Cantidad de bloques de ancho de medida TILE_WIDTH
@@ -478,9 +479,9 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	dim3 dimGrid(alt, anch);
 
 	//Inicio del kernel
-	
+
 	analisisTableroAutomaticoKernel << <dimGrid, dimBlock >> > (tablero_d, aux_d, dificultad, anchura, altura, TILE_WIDTH);
-	
+
 	//Transfiere el resultado de la GPU al host
 	cudaMemcpy(aux, aux_d, size, cudaMemcpyDeviceToHost);
 
@@ -501,7 +502,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 
 	//Si se pueden eliminar se ejecuta el movimiento, con lo que ello conlleva
 	if (valor_mejor >= 3) {
-		intercambiarPosiciones(tablero, x_mejor, y_mejor, 4, anchura, altura, 1, dificultad, TILE_WIDTH);
+		intercambiarPosiciones(tablero, x_mejor, y_mejor, 4, anchura, altura, 1, dificultad, TILE_WIDTH, globalState);
 	}
 	free(aux);
 	free(jewels_eliminadas);
@@ -624,7 +625,7 @@ __global__ void bombaRotarGPU(float* tablero, int anchura, int altura, int fila,
 			/* Memoria compartida */
 			aux[tFila + tColumna * 3] = tablero[((fila + 1) - tFila)*anchura + ((columna + 1) - tColumna)];
 			__syncthreads();
-			tablero[((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna)] = aux[tFila * 3+ tColumna];
+			tablero[((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna)] = aux[tFila * 3 + tColumna];
 		}
 	}
 }
@@ -826,12 +827,12 @@ int main() {
 
 				if (seleccion == 1) {
 					//printf("alt:%i, anch: %i, tito: %i.", alt, anch, TILE_WIDTH);
-					analisisTableroAutomatico(dificultad, tablero, anchura, altura, TILE_WIDTH);
-					
+					analisisTableroAutomatico(dificultad, tablero, anchura, altura, TILE_WIDTH, devStates);
+
 				}
 				else {
 					//printf("alt:%i, anch: %i, tito: %i.", alt, anch, TILE_WIDTH);
-					intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad, TILE_WIDTH);
+					intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad, TILE_WIDTH, devStates);
 				}
 			}
 
@@ -936,7 +937,7 @@ int main() {
 					{
 						dim3 dimGrid(1, 1);
 						dim3 dimBlock(anchura, altura);
-						bombaRotar<<<dimGrid, dimBlock >>>(tablero_d, anchura, altura);
+						bombaRotar << <dimGrid, dimBlock >> >(tablero_d, anchura, altura);
 					}
 					break;
 				}
@@ -962,7 +963,6 @@ int main() {
 		}
 
 	}
-
 	free(tablero);
 	cudaFree(tablero_d);
 	cudaFree(devStates);
