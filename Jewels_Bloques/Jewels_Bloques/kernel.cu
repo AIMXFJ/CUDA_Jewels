@@ -56,6 +56,7 @@ int obtenerTileWidth(int anchura, int altura) {
 			return 2;
 		}
 	}
+	return -1;
 }
 
 //funcion para generar una jewel aleatoria, como la generacion inicial.
@@ -128,10 +129,6 @@ __global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, flo
 	//Posicion real dentro del tablero
 	tx += block_x * TILE_WIDTH;
 	ty += block_y * TILE_WIDTH;
-	int max = 0;
-
-	if (altura >= anchura) max = altura;
-	else max = anchura;
 
 	if (jewels_eliminadas_d[0] != jewels_eliminadas_d[2] && tx >= jewels_eliminadas_d[0] && tx <= jewels_eliminadas_d[final - 2] && ty >= jewels_eliminadas_d[1]) {
 		if (ty + 1 < altura) {
@@ -171,7 +168,6 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	float *jewels_eliminadas_d;
 	float *tablero_aux_d;
 	int size = anchura * altura * sizeof(float);
-	int tam = anchura * altura;
 	int max = 0;
 
 	//Para saber que medida es la más grande, ya que no se pueden eliminar más jewels seguidas que esa medida
@@ -212,38 +208,13 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 
 	//Configuracion de ejecucion
 	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-	dim3 dimGrid(alt, anch);
+	dim3 dimGrid(anch, alt);
 
 	eliminarJewelsKernel << <dimGrid, dimBlock >> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final, TILE_WIDTH, globalState);
 
 	//Se recupera el tablero actualizado
 
 	cudaMemcpy(tablero, tablero_d, size, cudaMemcpyDeviceToHost);
-
-	//Se analiza y se añaden jewels nuevas en las posiciones vacias (-1)
-	/*
-	for (int k = 0; k < tam; k++) {
-	if (tablero[k] == -1) {
-	srand(time(NULL));
-	switch (dificultad) {
-	case 1: {
-	int randJewel = rand() % 4 + 1;
-	tablero[k] = randJewel;
-	break;
-	}
-	case 2: {
-	int randJewel = rand() % 6 + 1;
-	tablero[k] = randJewel;
-	break;
-	}
-	case 3: {
-	int randJewel = rand() % 8 + 1;
-	tablero[k] = randJewel;
-	break;
-	}
-	};
-	}
-	}*/
 
 	//Libera memoria
 	cudaFree(tablero_d);
@@ -436,10 +407,9 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	float *tablero_d;
 	float *aux_d;
 	float *aux;
-	float *jewels_eliminadas_d;
 	//Tamaño del tablero para asignar memoria
 	int size = anchura * altura * sizeof(float);
-	int size1 = anchura * altura;
+	int tam = anchura * altura;
 	int max = 0;
 
 	if (altura >= anchura) max = altura;
@@ -455,7 +425,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	}
 
 	//Solo se cuenta la jewel que se escoge, sigue siendo menor que 3
-	for (int p = 0; p < size1; p++) {
+	for (int p = 0; p < tam; p++) {
 		aux[p] = 1;
 	}
 
@@ -477,7 +447,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 
 	//Configuracion de ejecucion
 	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-	dim3 dimGrid(alt, anch);
+	dim3 dimGrid(anch, alt);
 
 	//Inicio del kernel
 
@@ -589,13 +559,11 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 
 	int tFila = blockIdx.y*TILE_WIDTH +threadIdx.y;
 	int tColumna = blockIdx.x*TILE_WIDTH + threadIdx.x;
-	float aux;
 
 	if (tFila < altura)
 	{
-		if ((tColumna + columna) < anchura)
+		if ((columna - tColumna) >= 0)
 		{
-			//printf("%i f: %i x %i + %i", (tFila*anchura + tColumna), tFila, anchura, tColumna);
 			if ((columna - tColumna - 1) < 0)
 			{
 				tablero[(tFila*anchura) + (columna - tColumna)] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
@@ -609,7 +577,6 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 
 __global__ void bombaRotarGPU(float* tablero, int anchura, int altura, int fila, int columna)
 {
-	int aux[9];
 	int tFila = threadIdx.y;
 	int tColumna = threadIdx.x;
 
@@ -645,33 +612,25 @@ __global__ void bombaRotar(float* tablero_d, int anchura, int altura, int TILE_W
 		}
 	}
 }
-int main() {
+
+int main(int argc, char** argv) {
 	//Matriz de tamaño variable de floats, un array de Altura*Anchura
-	int anchura = 2;
-	int altura = 2;
-	int dificultad = 1;
-	bool automatico = true;
+	int anchura;
+	int altura;
+	int dificultad;
+	char modo;
 	int size;
 	char ficheroGuardado[9] = "save.txt";
+	int seleccion;
 
-	float *tablero;
+	float* tablero;
 	float* tablero_d;
 
 	curandState* devStates;
 
 	bool jugando = true;
-
-	int eleccion = 2;
-	bool encontrado = false;
-	std::cout << "Desea cargar una partida guardada? 1.-SI   2.-NO\n";
-	std::cin >> eleccion;
-	if (eleccion == 1)
-	{
-		encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
-		std::cout << "Cargando Tablero de " << anchura << "x" << altura << " con dificultad: " << dificultad;
-		std::cout << std::endl;
-	}
-	if (!encontrado || (eleccion == 2))
+	/* Valores por argumento*/
+	if (argc == 1)
 	{
 		std::cout << "Anchura del tablero: ";
 		std::cin >> anchura;
@@ -681,20 +640,33 @@ int main() {
 
 		std::cout << "Elija dificultad: \n1.-Facil \n2.-Media \n3.-Dificil\n";
 		std::cin >> dificultad;
-	}
-	int seleccion;
-	std::cout << "Automatico?   1.-SI   2.-NO\n";
-	std::cin >> seleccion;
 
-	switch (seleccion) {
-	case 1: seleccion = 1; break;
-	case 2: seleccion = 2; break;
-	default: printf("Valor no valido.\n"); return -1;
+		std::cout << "Automatico?   1.-SI   2.-NO\n";
+		std::cin >> seleccion;
 	}
+	else
+	{
+		modo = argv[1][1];
+		dificultad = atoi(argv[2]);
+		anchura = atoi(argv[3]);
+		altura = atoi(argv[4]);
+
+		switch (modo) {
+		case 'a': {seleccion = 1; break; }
+		case 'm': {seleccion = 2; break; }
+		default: printf("Valor no valido.\n"); return -1;
+		}
+	}
+
 	size = anchura*altura;
 
 	//Tamaño de los bloques a crear en CUDA
 	int TILE_WIDTH = obtenerTileWidth(anchura, altura);
+	if (TILE_WIDTH == -1)
+	{
+		printf("ERROR: TILE_WIDTH no valido");
+		return 0;
+	}
 
 	//Cantidad de bloques de ancho de medida TILE_WIDTH
 	int anch = ceil(((float)anchura) / TILE_WIDTH);
@@ -704,6 +676,7 @@ int main() {
 
 	/* Inicializacion random en CUDA */
 	cudaMalloc(&devStates, size * sizeof(curandState));
+
 	/* Creacion de las Seeds */
 	setup_kernel << < 1, size >> > (devStates, unsigned(time(NULL)));
 
@@ -713,120 +686,149 @@ int main() {
 
 	/* Se inicializa la matriz */
 	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-	dim3 dimGrid(alt, anch);
+	dim3 dimGrid(anch, alt);
 	generacionInicialRandomJewels << <dimGrid, dimBlock >> >(tablero_d, dificultad, anchura, altura, TILE_WIDTH, devStates);
 	cudaMemcpy(tablero, tablero_d, size * sizeof(float), cudaMemcpyDeviceToHost);
-
-	std::cout << "Se crea un tablero nuevo: \n";
-	/*}*/
-
-
 
 	//Bucle principal del juego
 	while (jugando) {
 
-		//Se muestra el tablero
 		printTablero(tablero, anchura, altura);
 
 		int jewel1_x = 0;
 		int jewel1_y = 0;
 		int accion = 0;
 
-		//Se deja escoger eleccion, si es automatico hay que intercambiar cualquier jewel primero, aunque no se haga
 		std::cout << "Acción a realizar:\n";
 		std::cout << "(1) Intercambiar Jewels\n";
-		std::cout << "(2) Usar una Bomba\n";
-		std::cout << "(3) Guardar partida\n";
-		std::cout << "(4) Exit\n";
+		std::cout << "(2) Guardar partida\n";
+		std::cout << "(3) Cargar partida\n";
+		std::cout << "(9) Usar una Bomba\n";
+		std::cout << "(0) Exit\n";
 		std::cout << "Elija accion: ";
 
 		std::cin >> accion;
-		dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-		dim3 dimGrid(alt, anch);
 
 		switch (accion) {
+		/* EXIT */
+		case 0: {
+			free(tablero);
+			cudaFree(tablero_d);
+			cudaFree(devStates);
+			return 0;
+		}
+		/* Intercambio de jewel */
 		case 1: {
+			
+			cudaMemcpy(tablero, tablero_d, size * sizeof(float), cudaMemcpyDeviceToHost);
+			if (seleccion == 2)
+			{
+				std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
+				std::cout << "Columna: ";
+				std::cin >> jewel1_x;
+				std::cout << "Fila: ";
+				std::cin >> jewel1_y;
 
-			std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
-			std::cout << "X: ";
-			std::cin >> jewel1_x;
-			std::cout << "Y: ";
-			std::cin >> jewel1_y;
-
-			if (!((jewel1_x < anchura) && (jewel1_x >= 0) && (jewel1_y < altura) && (jewel1_y >= 0))) {
-				printf("Posicion erronea.\n");
-				continue;
-			}
-
-			int direccion = 0;
-			std::cout << "Direccion a seguir para intercambio de posiciones: \n 1.-Arriba\n 2.-Abajo\n 3.-Izquierda\n 4.-Derecha";
-			std::cin >> direccion;
-
-			if (direccion > 4 && direccion > 1) {
-				printf("Direccion erronea.\n");
-				continue;
-			}
-			else {
-				switch (direccion)
-				{
-				case 1: //Arriba
-				{
-					if (jewel1_y == altura)
-					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
-					}
-					break;
-				}
-				case 2: //Abajo
-				{
-					if (jewel1_y == 0)
-					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
-					}
-					break;
-				}
-				case 3: //Izquierda
-				{
-					if (jewel1_x == 0)
-					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
-					}
-					break;
-				}
-				case 4: //Derecha
-				{
-					if (jewel1_x == anchura - 1)
-					{
-						printf("No se puede realizar el intercambio especificado.\n");
-						continue;
-					}
-					break;
-				}
+				if (!((jewel1_x < anchura) && (jewel1_x >= 0) && (jewel1_y < altura) && (jewel1_y >= 0))) {
+					printf("Posicion erronea.\n");
+					continue;
 				}
 
-				if (seleccion == 1) {
-					//printf("alt:%i, anch: %i, tito: %i.", alt, anch, TILE_WIDTH);
-					analisisTableroAutomatico(dificultad, tablero, anchura, altura, TILE_WIDTH, devStates);
+				int direccion = 0;
+				std::cout << "Direccion a seguir para intercambio de posiciones: \n 1.-Arriba\n 2.-Abajo\n 3.-Izquierda\n 4.-Derecha\n";
+				std::cin >> direccion;
 
+				if (direccion > 4 && direccion > 1) {
+					printf("Direccion erronea.\n");
+					continue;
 				}
 				else {
-					//printf("alt:%i, anch: %i, tito: %i.", alt, anch, TILE_WIDTH);
-					intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad, TILE_WIDTH, devStates);
+					switch (direccion)
+					{
+					case 1: //Arriba
+					{
+						if (jewel1_y == altura)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
+					}
+					case 2: //Abajo
+					{
+						if (jewel1_y == 0)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
+					}
+					case 3: //Izquierda
+					{
+						if (jewel1_x == 0)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
+					}
+					case 4: //Derecha
+					{
+						if (jewel1_x == anchura - 1)
+						{
+							printf("No se puede realizar el intercambio especificado.\n");
+							continue;
+						}
+						break;
+					}
+					}
 				}
-			}
+				/* Intercambiar posiciones */
+				intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad, TILE_WIDTH, devStates);
 
+			}
+			else if (seleccion == 1)
+			{
+				/* Analisis automatico */
+				analisisTableroAutomatico(dificultad, tablero, anchura, altura, TILE_WIDTH, devStates);
+			}
+			cudaMemcpy(tablero_d, tablero, size * sizeof(float), cudaMemcpyDeviceToHost);
 			break;
 		}
+		/* Guardar Partida */
 		case 2: {
-			// Bomba
-			int bomba = 0;
-			int fila = 0, columna = 0;
+			
+			guardado(tablero, anchura, altura, dificultad, ficheroGuardado);
+			std::cout << "Guardado correcto.\n";
+			break;
+		}
+		/* Cargar Partida */
+		case 3: {
 
+			/* Precarga de tablero */
+			bool encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
+
+			if (encontrado)
+			{
+				/* Cargar tablero */
+				cargar(anchura, altura, tablero, ficheroGuardado);
+				std::cout << "Se ha cargado el Tablero: \n";
+			}
+			else {
+				std::cout << "No existe ninguna partida guardada.\n";
+			}
+			break;
+
+		}
+		/* Bombas */
+		case 9: {
+			
+			int bomba = 0;
+			int fila = 0; int columna = 0;
 			std::cout << "Elija una bomba:";
+
 			cudaMemcpy(tablero_d, tablero, size * sizeof(float), cudaMemcpyHostToDevice);
+
 			/* Bombas por tipo de dificultad */
 			switch (dificultad) {
 			case 1: {
@@ -839,11 +841,10 @@ int main() {
 					printf("Bomba erronea.\n");
 					continue;
 				}
-				std::cout << "X: ";
+				std::cout << "Fila: ";
 				std::cin >> fila;
-				
 				dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-				dim3 dimGrid(alt, anch);
+				dim3 dimGrid(anch, alt);
 				bombaFila << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, TILE_WIDTH, devStates);
 				break;
 			}
@@ -861,19 +862,19 @@ int main() {
 				switch (bomba) {
 				case 1:
 				{
-					std::cout << "X: ";
+					std::cout << "Fila: ";
 					std::cin >> fila;
 					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-					dim3 dimGrid(alt, anch);
+					dim3 dimGrid(anch, alt);
 					bombaFila << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, TILE_WIDTH, devStates);
 					break;
 				}
 				case 2:
 				{
-					std::cout << "Y: ";
+					std::cout << "Columna: ";
 					std::cin >> columna;
 					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-					dim3 dimGrid(alt, anch);
+					dim3 dimGrid(anch, alt);
 					bombaColumna << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, dificultad, columna, TILE_WIDTH, devStates);
 					break;
 				}
@@ -883,7 +884,7 @@ int main() {
 			case 3: {
 				std::cout << "(1) Bomba de fila";
 				std::cout << "(2) Bomba de columna";
-				std::cout << "(3) Bomba de rotacion 3x3 (la jewel elegida es el centro)";
+				std::cout << "(3) Bomba de rotacion 3x3";
 				std::cout << "\nEleccion: ";
 				std::cin >> bomba;
 
@@ -895,39 +896,27 @@ int main() {
 				switch (bomba) {
 				case 1:
 				{
-					std::cout << "X: ";
+					std::cout << "Fila: ";
 					std::cin >> fila;
 					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-					dim3 dimGrid(alt, anch);
+					dim3 dimGrid(anch, alt);
 					bombaFila << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, TILE_WIDTH, devStates);
 					break;
 				}
 				case 2:
 				{
-					std::cout << "Y: ";
+					std::cout << "Columna: ";
 					std::cin >> columna;
 					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-					dim3 dimGrid(alt, anch);
+					dim3 dimGrid(anch, alt);
 					bombaColumna << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, dificultad, columna, TILE_WIDTH, devStates);
 					break;
 				}
 				case 3:
 				{
-					/*
-					std::cout << "X: ";
-					std::cin >> fila;
-					std::cout << "Y: ";
-					std::cin >> columna;*/
-					/*if ((fila - 1) < 0 || (fila + 1) >= altura || (columna - 1) < 0 || (columna + 1) >= anchura)
-					{
-						std::cout << "Rotacion no valida" << std::endl;
-					}
-					else
-					{*/
 					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-					dim3 dimGrid(alt, anch);;
-						bombaRotar << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, TILE_WIDTH);
-					//}
+					dim3 dimGrid(anch, alt);;
+					bombaRotar << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, TILE_WIDTH);
 					break;
 				}
 				}
@@ -937,18 +926,7 @@ int main() {
 			cudaMemcpy(tablero, tablero_d, size * sizeof(float), cudaMemcpyDeviceToHost);
 			break;
 		}
-		case 3: {
-			guardado(tablero, anchura, altura, dificultad, ficheroGuardado);
-			std::cout << "Guardado correcto.\n";
-			break;
-		}
-		case 4:
-		{
-			free(tablero);
-			cudaFree(tablero_d);
-			cudaFree(devStates);
-			return 0;
-		}
+
 		}
 
 	}
