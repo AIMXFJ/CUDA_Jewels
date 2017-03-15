@@ -95,9 +95,9 @@ __device__ int generarJewelCUDA(curandState* globalState, int ind, int dificulta
 }
 
 /* Funcion para inicializar la matriz de gemas */
-__global__ void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura, curandState* globalState) {
-	int tFila = threadIdx.y;
-	int tColumna = threadIdx.x;
+__global__ void generacionInicialRandomJewels(float *tablero, int dificultad, int anchura, int altura, int TILE_WIDTH, curandState* globalState) {
+	int tFila = blockIdx.y*TILE_WIDTH + threadIdx.y;
+	int tColumna = blockIdx.x*TILE_WIDTH + threadIdx.x;
 	if (tFila < altura)
 	{
 		if (tColumna < anchura)
@@ -106,6 +106,7 @@ __global__ void generacionInicialRandomJewels(float *tablero, int dificultad, in
 		}
 	}
 }
+
 void printTablero(float* tablero, int anchura, int altura) {
 	for (int i = altura - 1; i >= 0; i--) {
 		printf("\n");
@@ -560,10 +561,10 @@ void guardado(float* tablero, int anchura, int altura, int dificultad, char* fic
 	ficheroGuardado.close();
 }
 /* Funcion que elimina una fila */
-__global__ void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila, curandState* globalState) {
+__global__ void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila, int TILE_WIDTH, curandState* globalState) {
 
-	int tFila = threadIdx.y;
-	int tColumna = threadIdx.x;
+	int tFila = blockIdx.y*TILE_WIDTH + threadIdx.y;
+	int tColumna = blockIdx.x*TILE_WIDTH + threadIdx.x;
 	float aux;
 
 	if ((tFila + fila) < altura)
@@ -584,10 +585,10 @@ __global__ void bombaFila(float* tablero, int anchura, int altura, int dificulta
 }
 
 /* Funcion que elimina una columna */
-__global__ void bombaColumna(float* tablero, int anchura, int altura, int dificultad, int columna, curandState* globalState) {
+__global__ void bombaColumna(float* tablero, int anchura, int altura, int dificultad, int columna, int TILE_WIDTH, curandState* globalState) {
 
-	int tFila = threadIdx.y;
-	int tColumna = threadIdx.x;
+	int tFila = blockIdx.y*TILE_WIDTH +threadIdx.y;
+	int tColumna = blockIdx.x*TILE_WIDTH + threadIdx.x;
 	float aux;
 
 	if (tFila < altura)
@@ -595,13 +596,12 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 		if ((tColumna + columna) < anchura)
 		{
 			//printf("%i f: %i x %i + %i", (tFila*anchura + tColumna), tFila, anchura, tColumna);
-			if ((tColumna + columna + 1) == anchura)
+			if ((columna - tColumna - 1) < 0)
 			{
-				tablero[(tFila*anchura) + (tColumna + columna)] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
-				//printf("%i-%f-", (tFila*anchura) + (tColumna + columna), tablero[(tFila*anchura) + (tColumna + columna)]);
+				tablero[(tFila*anchura) + (columna - tColumna)] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
 			}
 			else {
-				tablero[(tFila*anchura) + (tColumna + columna)] = tablero[(tFila*anchura) + (tColumna + columna + 1)];
+				tablero[(tFila*anchura) + (columna - tColumna)] = tablero[(tFila*anchura) + (columna - tColumna - 1)];
 			}
 		}
 	}
@@ -609,7 +609,7 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 
 __global__ void bombaRotarGPU(float* tablero, int anchura, int altura, int fila, int columna)
 {
-	__shared__ int aux[9];
+	int aux[9];
 	int tFila = threadIdx.y;
 	int tColumna = threadIdx.x;
 
@@ -617,23 +617,15 @@ __global__ void bombaRotarGPU(float* tablero, int anchura, int altura, int fila,
 	{
 		if (tColumna < 3)
 		{
-
-			//aux[tFila + tColumna * 3] = tablero[((fila + 1) - tFila)*anchura + ((columna + 1) - tColumna)];
-			//tablero[(fila + 1 - tColumna)*anchura + (columna - 1 + tFila)] = aux[tFila + tColumna * 3];
-
-
-			/* Memoria compartida */
-			aux[tFila + tColumna * 3] = tablero[((fila + 1) - tFila)*anchura + ((columna + 1) - tColumna)];
-			__syncthreads();
-			tablero[((fila + 1) - tFila)*anchura + ((columna - 1) + tColumna)] = aux[tFila * 3 + tColumna];
+			tablero[(fila + 1 - tColumna)*anchura + (columna - 1 + tFila)] = tablero[((fila + 1) - tFila)*anchura + ((columna + 1) - tColumna)];
 		}
 	}
 }
 
-__global__ void bombaRotar(float* tablero_d, int anchura, int altura)
+__global__ void bombaRotar(float* tablero_d, int anchura, int altura, int TILE_WIDTH)
 {
-	int tFila = threadIdx.y;
-	int tColumna = threadIdx.x;
+	int tFila = blockIdx.y*TILE_WIDTH + threadIdx.y;
+	int tColumna = blockIdx.x*TILE_WIDTH + threadIdx.x;
 	if (tFila < altura && tColumna < anchura) {
 		if ((tFila - 1) < 0 || (tFila + 1) >= altura || (tColumna - 1) < 0 || (tColumna + 1) >= anchura)
 		{
@@ -646,9 +638,9 @@ __global__ void bombaRotar(float* tablero_d, int anchura, int altura)
 			{
 				dim3 dimBlock(3, 3);
 				dim3 dimGrid(1, 1);
-				//printf(" %i-%i ", tFila, tColumna);
+				
 				bombaRotarGPU << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, tFila, tColumna);
-				//__syncthreads();
+				
 			}
 		}
 	}
@@ -695,8 +687,8 @@ int main() {
 	std::cin >> seleccion;
 
 	switch (seleccion) {
-	case 1: automatico = true; break;
-	case 2: automatico = false; break;
+	case 1: seleccion = 1; break;
+	case 2: seleccion = 2; break;
 	default: printf("Valor no valido.\n"); return -1;
 	}
 	size = anchura*altura;
@@ -710,11 +702,6 @@ int main() {
 	//Cantidad de bloques de alto con medida TILE_WIDTH
 	int alt = ceil(((float)altura) / TILE_WIDTH);
 
-	//Configuracion de ejecucion
-	dim3 dimBlock(anchura, altura);
-	dim3 dimGrid(1, 1);
-
-
 	/* Inicializacion random en CUDA */
 	cudaMalloc(&devStates, size * sizeof(curandState));
 	/* Creacion de las Seeds */
@@ -724,15 +711,10 @@ int main() {
 	tablero = (float*)malloc(size * sizeof(float));
 	cudaMalloc((void**)&tablero_d, size * sizeof(float));
 
-	//Se inicializa la matriz
-	/*if (encontrado)
-	{
-	cargar(anchura, altura, tablero, ficheroGuardado);
-	std::cout << "Se ha cargado el Tablero: \n";
-	}
-	else {*/
-
-	generacionInicialRandomJewels << <dimGrid, dimBlock >> >(tablero_d, dificultad, anchura, altura, devStates);
+	/* Se inicializa la matriz */
+	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+	dim3 dimGrid(alt, anch);
+	generacionInicialRandomJewels << <dimGrid, dimBlock >> >(tablero_d, dificultad, anchura, altura, TILE_WIDTH, devStates);
 	cudaMemcpy(tablero, tablero_d, size * sizeof(float), cudaMemcpyDeviceToHost);
 
 	std::cout << "Se crea un tablero nuevo: \n";
@@ -859,8 +841,10 @@ int main() {
 				}
 				std::cout << "X: ";
 				std::cin >> fila;
-				dim3 dimBlock(anchura, altura - fila);
-				bombaFila << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, devStates);
+				
+				dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+				dim3 dimGrid(alt, anch);
+				bombaFila << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, TILE_WIDTH, devStates);
 				break;
 			}
 			case 2: {
@@ -879,16 +863,18 @@ int main() {
 				{
 					std::cout << "X: ";
 					std::cin >> fila;
-					dim3 dimBlock(anchura, altura - fila);
-					bombaFila << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, devStates);
+					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+					dim3 dimGrid(alt, anch);
+					bombaFila << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, TILE_WIDTH, devStates);
 					break;
 				}
 				case 2:
 				{
 					std::cout << "Y: ";
 					std::cin >> columna;
-					dim3 dimBlock(anchura - columna, altura);
-					bombaColumna << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, dificultad, columna, devStates);
+					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+					dim3 dimGrid(alt, anch);
+					bombaColumna << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, dificultad, columna, TILE_WIDTH, devStates);
 					break;
 				}
 				}
@@ -911,34 +897,37 @@ int main() {
 				{
 					std::cout << "X: ";
 					std::cin >> fila;
-					dim3 dimBlock(anchura, altura - fila);
-					bombaFila << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, devStates);
+					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+					dim3 dimGrid(alt, anch);
+					bombaFila << <dimGrid, dimBlock >> > (tablero_d, anchura, altura, dificultad, fila, TILE_WIDTH, devStates);
 					break;
 				}
 				case 2:
 				{
 					std::cout << "Y: ";
 					std::cin >> columna;
-					dim3 dimBlock(anchura - columna, altura);
-					bombaColumna << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, dificultad, columna, devStates);
+					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+					dim3 dimGrid(alt, anch);
+					bombaColumna << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, dificultad, columna, TILE_WIDTH, devStates);
 					break;
 				}
 				case 3:
 				{
+					/*
 					std::cout << "X: ";
 					std::cin >> fila;
 					std::cout << "Y: ";
-					std::cin >> columna;
-					if ((fila - 1) < 0 || (fila + 1) >= altura || (columna - 1) < 0 || (columna + 1) >= anchura)
+					std::cin >> columna;*/
+					/*if ((fila - 1) < 0 || (fila + 1) >= altura || (columna - 1) < 0 || (columna + 1) >= anchura)
 					{
 						std::cout << "Rotacion no valida" << std::endl;
 					}
 					else
-					{
-						dim3 dimGrid(1, 1);
-						dim3 dimBlock(anchura, altura);
-						bombaRotar << <dimGrid, dimBlock >> >(tablero_d, anchura, altura);
-					}
+					{*/
+					dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
+					dim3 dimGrid(alt, anch);;
+						bombaRotar << <dimGrid, dimBlock >> >(tablero_d, anchura, altura, TILE_WIDTH);
+					//}
 					break;
 				}
 				}
