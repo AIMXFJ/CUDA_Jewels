@@ -68,16 +68,19 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	else max = anchura;
 
 	int final = 0;
-	
-	for (int i = 0; i < max*2; i++) {
-		//printf("\ni:%i valor:%f\n",i,jewels_eliminadas[i]);
+	bool modif = false;
+
+	//Calcula cual es el ultimo valor escrito de las jewels a eliminar, ya que puede haber posiciones no escritas
+	for (int i = 0; i < max * 2; i++) {
 		if (jewels_eliminadas[i] < 0) {
 			final = i;
+			modif = true;
 			break;
 		}
 	}
 
-	if (final == 0) final = max*2;
+	//En caso de que este completamente escrito
+	if (!modif) final = max * 2;
 
 	//printf("\nFinal: %i\n", final);
 	srand(time(NULL));
