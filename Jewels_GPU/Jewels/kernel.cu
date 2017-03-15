@@ -8,56 +8,6 @@
 
 #include <fstream>
 
-//Analiza las propiedades de la tarjeta grafica para devolver el tamaño adecuado de tile, tambien trata el tamaño del tablero
-int obtenerTileWidth(int anchura, int altura) {
-	float min_medida = 0;
-
-	if (anchura > altura) min_medida = anchura;
-	else min_medida = altura;
-
-	cudaDeviceProp propiedades;
-	cudaGetDeviceProperties(&propiedades, 0);
-
-
-
-	int max_threads = propiedades.maxThreadsPerBlock;
-
-	if (anchura == altura) {	//Si la matriz es cuadrada, para no tener 1 solo bloque
-		if (min_medida / 32 > 1 && max_threads == 1024) { //Solo si tiene 1024 hilos por bloque podra ser de 32x32
-			return 32;
-		}
-		else if (min_medida / 16 > 1) {
-			return 16;
-		}
-		else if (min_medida / 8 > 1) {
-			return 8;
-		}
-		else if (min_medida / 4 > 1) {
-			return 4;
-		}
-		else if (min_medida / 2 > 1) {
-			return 2;
-		}
-	}
-	else {	//si la matriz no es cuadrada
-		if (min_medida / 32 >= 1 && max_threads == 1024) {
-			return 32;
-		}
-		else if (min_medida / 16 >= 1) {
-			return 16;
-		}
-		else if (min_medida / 8 >= 1) {
-			return 8;
-		}
-		else if (min_medida / 4 >= 1) {
-			return 4;
-		}
-		else if (min_medida / 2 >= 1) {
-			return 2;
-		}
-	}
-}
-
 //funcion para generar una jewel aleatoria, como la generacion inicial.
 /* Funciones para generar gemas aleatorias */
 /* Iniciador de seeds */
@@ -118,15 +68,10 @@ void printTablero(float* tablero, int anchura, int altura) {
 
 /*Recibe las coordenadas de las jewels a eliminar y mueve las filas que tiene que bajar a partir de ellas, emplea
 una copia del tablero para evitar race conditions*/
-__global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, float* jewels_eliminadas_d, int dificultad, int anchura, int altura, int final, int TILE_WIDTH, curandState* globalState) {
+__global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, float* jewels_eliminadas_d, int dificultad, int anchura, int altura, int final, curandState* globalState) {
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
-	int block_x = blockIdx.x;
-	int block_y = blockIdx.y;
-
-	//Posicion real dentro del tablero
-	tx += block_x * TILE_WIDTH;
-	ty += block_y * TILE_WIDTH;
+	
 	int max = 0;
 
 	if (altura >= anchura) max = altura;
@@ -165,7 +110,7 @@ __global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, flo
 }
 
 /*Funcion que prepara y llama el kernel con su mismo nombre, genera todos los datos necesarios*/
-void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, int anchura, int altura, int TILE_WIDTH, curandState* globalState) {
+void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, int anchura, int altura, curandState* globalState) {
 	float *tablero_d;
 	float *jewels_eliminadas_d;
 	float *tablero_aux_d;
@@ -203,17 +148,11 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	//En caso de que este completamente escrito
 	if (!modif) final = max * 2;
 
-	//Cantidad de bloques de ancho de medida TILE_WIDTH
-	int anch = ceil(((double)anchura) / TILE_WIDTH);
-
-	//Cantidad de bloques de alto con medida TILE_WIDTH
-	int alt = ceil(((double)altura) / TILE_WIDTH);
-
 	//Configuracion de ejecucion
-	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-	dim3 dimGrid(alt, anch);
+	dim3 dimBlock(anchura, altura);
+	dim3 dimGrid(1, 1);
 
-	eliminarJewelsKernel << <dimGrid, dimBlock >> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final, TILE_WIDTH, globalState);
+	eliminarJewelsKernel << <dimGrid, dimBlock >> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final, globalState);
 
 	//Se recupera el tablero actualizado
 
@@ -252,15 +191,9 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 
 /*Escribe en un tablero auxiliar la cantidad de jewels que se eliminarian moviendo una jewel (x,y) hacia la derecha
 paralelizable ya que todos los hilos (cada hilo 1 jewel) tienen que expandirse hacia la derecha para ver hasta donde llegarian a eliminar*/
-__global__ void analisisTableroAutomaticoKernel(float *tablero_d, float *aux_d, int dificultad, int anchura, int altura, int TILE_WIDTH) {
+__global__ void analisisTableroAutomaticoKernel(float *tablero_d, float *aux_d, int dificultad, int anchura, int altura) {
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
-	int block_x = blockIdx.x;
-	int block_y = blockIdx.y;
-
-	//Posicion real dentro del tablero
-	tx += block_x * TILE_WIDTH;
-	ty += block_y * TILE_WIDTH;
 
 	int jewels_posibles_der = 0;
 
@@ -287,7 +220,7 @@ __global__ void analisisTableroAutomaticoKernel(float *tablero_d, float *aux_d, 
 }
 
 //Analiza el movimiento manual, usando las coordenadas de la nueva posicion de la jewel seleccionada
-void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura, int x, int y, int TILE_WIDTH, curandState* globalState) {
+void analisisTableroManual(int dificultad, float* tablero, int anchura, int altura, int x, int y, curandState* globalState) {
 	int max = 0;
 	int size = anchura*altura;
 
@@ -388,12 +321,12 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 	}
 
 	//Las elimina
-	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura, TILE_WIDTH, globalState);
+	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura, globalState);
 	free(jewels_eliminadas);
 }
 
 //Intercambia la jewel seleccionadas con la jewel en la dirección indicada
-void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura, int seleccion, int dificultad, int TILE_WIDTH, curandState* globalState) {
+void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura, int seleccion, int dificultad, curandState* globalState) {
 	int jewel2_x = jewel1_x;
 	int jewel2_y = jewel1_y;
 	switch (direccion)
@@ -427,11 +360,11 @@ void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int dire
 	tablero[jewel1_x + jewel1_y*anchura] = aux1;
 
 	//Analiza el movimiento para ver si se pueden eliminar jewels
-	analisisTableroManual(dificultad, tablero, anchura, altura, jewel2_x, jewel2_y, TILE_WIDTH, globalState);
+	analisisTableroManual(dificultad, tablero, anchura, altura, jewel2_x, jewel2_y, globalState);
 }
 
 //Analiza la mejor opcion y la ejecuta en funcion de lo que devuelve el kernel
-void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int altura, int TILE_WIDTH, curandState* globalState) {
+void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int altura, curandState* globalState) {
 	float *tablero_d;
 	float *aux_d;
 	float *aux;
@@ -468,19 +401,13 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 
 	cudaMemcpy(aux_d, aux, size, cudaMemcpyHostToDevice);
 
-	//Cantidad de bloques de ancho de medida TILE_WIDTH
-	int anch = ceil(((double)anchura) / TILE_WIDTH);
-
-	//Cantidad de bloques de alto con medida TILE_WIDTH
-	int alt = ceil(((double)altura) / TILE_WIDTH);
-
 	//Configuracion de ejecucion
-	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-	dim3 dimGrid(alt, anch);
+	dim3 dimBlock(anchura, altura);
+	dim3 dimGrid(1, 1);
 
 	//Inicio del kernel
 
-	analisisTableroAutomaticoKernel << <dimGrid, dimBlock >> > (tablero_d, aux_d, dificultad, anchura, altura, TILE_WIDTH);
+	analisisTableroAutomaticoKernel << <dimGrid, dimBlock >> > (tablero_d, aux_d, dificultad, anchura, altura);
 
 	//Transfiere el resultado de la GPU al host
 	cudaMemcpy(aux, aux_d, size, cudaMemcpyDeviceToHost);
@@ -502,7 +429,7 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 
 	//Si se pueden eliminar se ejecuta el movimiento, con lo que ello conlleva
 	if (valor_mejor >= 3) {
-		intercambiarPosiciones(tablero, x_mejor, y_mejor, 4, anchura, altura, 1, dificultad, TILE_WIDTH, globalState);
+		intercambiarPosiciones(tablero, x_mejor, y_mejor, 4, anchura, altura, 1, dificultad, globalState);
 	}
 	free(aux);
 	free(jewels_eliminadas);
@@ -701,15 +628,6 @@ int main() {
 	}
 	size = anchura*altura;
 
-	//Tamaño de los bloques a crear en CUDA
-	int TILE_WIDTH = obtenerTileWidth(anchura, altura);
-
-	//Cantidad de bloques de ancho de medida TILE_WIDTH
-	int anch = ceil(((float)anchura) / TILE_WIDTH);
-
-	//Cantidad de bloques de alto con medida TILE_WIDTH
-	int alt = ceil(((float)altura) / TILE_WIDTH);
-
 	//Configuracion de ejecucion
 	dim3 dimBlock(anchura, altura);
 	dim3 dimGrid(1, 1);
@@ -759,8 +677,8 @@ int main() {
 		std::cout << "Elija accion: ";
 
 		std::cin >> accion;
-		dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
-		dim3 dimGrid(alt, anch);
+		dim3 dimBlock(anchura, altura);
+		dim3 dimGrid(1, 1);
 
 		switch (accion) {
 		case 1: {
@@ -826,13 +744,10 @@ int main() {
 				}
 
 				if (seleccion == 1) {
-					//printf("alt:%i, anch: %i, tito: %i.", alt, anch, TILE_WIDTH);
-					analisisTableroAutomatico(dificultad, tablero, anchura, altura, TILE_WIDTH, devStates);
-
+					analisisTableroAutomatico(dificultad, tablero, anchura, altura, devStates);
 				}
 				else {
-					//printf("alt:%i, anch: %i, tito: %i.", alt, anch, TILE_WIDTH);
-					intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad, TILE_WIDTH, devStates);
+					intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad, devStates);
 				}
 			}
 
