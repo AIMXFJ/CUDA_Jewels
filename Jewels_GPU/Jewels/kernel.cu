@@ -609,32 +609,32 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 		int jewels_posibles_arrib = 0;
 		int jewels_posibles_abaj = 0;
 
-		//printf("\nVERTICAL\n");
+		printf("\nVERTICAL\n");
 		//Si tiene por abajo
 		if ((x + (y - 1)*anchura >= 0) && tablero[x + (y - 1)*anchura] == tablero[x + y*anchura]) {
 			printf("\nABAJO\n");
 			int i = 1;
 			while ((x + (y - i)*anchura >= 0) && tablero[x + (y - i)*anchura] == tablero[x + y*anchura]) {
 				jewels_posibles_abaj++;
-				//printf("\nTIENE ABAJO\n");
+				printf("\nTIENE ABAJO\n");
 				i++;
 			}
 		}
 
 		//Si tiene por arriba
 		if ((x + 1 + y*anchura <= size) && tablero[x + (y + 1)*anchura] == tablero[x + y*anchura]) {
-			//printf("\nARRIBA\n");
+			printf("\nARRIBA\n");
 			int i = 1;
 			while ((x + (y + i)*anchura <= size) && tablero[x + (y + i)*anchura] == tablero[x + y*anchura]) {
 				jewels_posibles_arrib++;
-				//printf("\nTIENE ARRIBA\n");
+				printf("\nTIENE ARRIBA\n");
 				i++;
 			}
 		}
 
 		//Se pueden eliminar
 		if (1 + jewels_posibles_abaj + jewels_posibles_arrib >= 3) {
-			//printf("\nSE PUEDE\n");
+			printf("\nSE PUEDE\n");
 
 			int salto = 0;
 			for (int j = jewels_posibles_abaj; j >= (1); j--) {
@@ -654,7 +654,7 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 			}
 		}
 	}
-
+	printf("USA");
 	for (int q = 0; q < 2 * max; q++) {
 		if (q % 2 != 0) {
 			printf(" y:%f\n", jewels_eliminadas[q]);
@@ -663,6 +663,7 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 			printf("| x:%f\n", jewels_eliminadas[q]);
 		}
 	}
+	printf("DELETT");
 	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
 }
 
@@ -698,8 +699,9 @@ void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int dire
 
 	tablero[jewel2_x + jewel2_y*anchura] = tablero[jewel1_x + jewel1_y*anchura];
 	tablero[jewel1_x + jewel1_y*anchura] = aux1;
-
+	printf("manual");
 	analisisTableroManual(dificultad, tablero, anchura, altura, jewel2_x, jewel2_y);
+	printf("out");
 }
 
 //CUDA CPU Function. Analiza la mejor opcion y la ejecuta
@@ -715,29 +717,31 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	else max = anchura;
 
 	//Solo se eliminan 3 jewels, 2 coordenadas por jewel = 6 posiciones en el array
+
 	float* jewels_eliminadas = (float*)malloc(2 * max * sizeof(float));
 	aux = (float*)malloc(size);
-
+	printf("crear array");
 	for (int i = 0; i < max; i++) {
 		jewels_eliminadas[i] = -1;
 	}
-
+	printf("je");
 	for (int p = 0; p < size; p++) {
 		aux[p] = 1;
 	}
-
+	printf("1");
 	//Tablero a GPU
 	cudaMalloc((void**)&tablero_d, size);
 	cudaMemcpy(tablero_d, tablero, size, cudaMemcpyHostToDevice);
 	cudaMalloc((void**)&aux_d, size);
 	cudaMemcpy(aux_d, aux, size, cudaMemcpyHostToDevice);
-
+	printf("2");
 	//Configuracion de ejecucion, 1 hilo por bloque, tantos bloques como celdas
 	dim3 dimBlock(anchura, altura);
 	dim3 dimGrid(1, 1);
 
 	//Inicio del calculo, misma funcion de analisis en manual y automatico
 	analisisTableroAutomaticoKernel <<<dimGrid,dimBlock>>> (tablero_d, aux_d, dificultad, anchura, altura);
+	printf("7");
 	if (cudaSuccess != cudaGetLastError())
 		printf("\nCUDA Error!\n");
 
@@ -950,9 +954,9 @@ int main(int argc, char** argv) {
 	altura = atoi(argv[4]);*/
 
 	modo = 'a';
-	dificultad = 3;
+	dificultad = 1;
 	anchura = 6;
-	altura = 3;
+	altura = 6;
 	size = anchura*altura;
 
 	/* Establecer modo de juego */
@@ -1068,6 +1072,7 @@ int main(int argc, char** argv) {
 				intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad);
 
 				if (seleccion == 1)
+					printf("Analisis");
 					analisisTableroAutomatico(dificultad, tablero, anchura, altura);
 			}
 
