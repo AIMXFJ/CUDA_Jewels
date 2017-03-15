@@ -297,6 +297,7 @@ void analisisTableroManual(int dificultad, float* tablero, int anchura, int altu
 		}
 	}*/
 	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
+	free(jewels_eliminadas);
 }
 
 void intercambiarPosiciones(float* tablero, int jewel1_x, int jewel1_y, int direccion, int anchura, int altura, int seleccion, int dificultad) {
@@ -413,8 +414,8 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	}
 
 	eliminarJewels(tablero, jewels_eliminadas, dificultad, anchura, altura);
-
-
+	free(jewels_eliminadas);
+	free(aux_tablero);
 }
 
 bool precargar(int& anchura, int& altura, int& dificultad, char* fichero)
@@ -571,7 +572,6 @@ int main(int argc, char** argv) {
 	int dificultad;
 	char modo;
 	bool automatico = true;
-	int TILE_WIDTH = 16;
 	int size;
 	char ficheroGuardado[9] = "save.txt";
 	bool encontrado = false;
