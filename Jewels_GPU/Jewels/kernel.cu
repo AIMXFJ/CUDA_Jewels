@@ -71,11 +71,6 @@ una copia del tablero para evitar race conditions*/
 __global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, float* jewels_eliminadas_d, int dificultad, int anchura, int altura, int final, curandState* globalState) {
 	int tx = threadIdx.x;
 	int ty = threadIdx.y;
-	
-	int max = 0;
-
-	if (altura >= anchura) max = altura;
-	else max = anchura;
 
 	if (jewels_eliminadas_d[0] != jewels_eliminadas_d[2] && tx >= jewels_eliminadas_d[0] && tx <= jewels_eliminadas_d[final - 2] && ty >= jewels_eliminadas_d[1]) {
 		if (ty + 1 < altura) {
@@ -83,12 +78,9 @@ __global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, flo
 			float value = tablero_aux_d[tx + (ty + 1)*anchura];
 
 			tablero_d[tx + (ty)*(anchura)] = value;
-
 		}
 		else {
-
 			tablero_d[tx + ty*anchura] = generarJewelCUDA(globalState, tx + ty*anchura, dificultad);
-
 		}
 	}
 	else {
@@ -115,7 +107,6 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	float *jewels_eliminadas_d;
 	float *tablero_aux_d;
 	int size = anchura * altura * sizeof(float);
-	int tam = anchura * altura;
 	int max = 0;
 
 	//Para saber que medida es la más grande, ya que no se pueden eliminar más jewels seguidas que esa medida
@@ -343,7 +334,6 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 	float *tablero_d;
 	float *aux_d;
 	float *aux;
-	float *jewels_eliminadas_d;
 	//Tamaño del tablero para asignar memoria
 	int size = anchura * altura * sizeof(float);
 	int tam = anchura * altura;
@@ -414,59 +404,96 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 
 bool precargar(int& anchura, int& altura, int& dificultad, char* fichero)
 {
+	std::ifstream fAnchura("anchura.txt");
+	if (!fAnchura.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
+	fAnchura >> anchura;
+	fAnchura.close();
+
+	std::ifstream fAltura("altura.txt");
+	
+	if (!fAltura.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
+	fAltura >> altura;
+	fAltura.close();
+	std::ifstream fDificultad("dificultad.txt");
+
+	if (!fDificultad.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
+	fDificultad >> dificultad;
+	fDificultad.close();
 	std::ifstream fCarga(fichero);
-	char tam[4];
 	if (!fCarga.is_open())
 	{
 		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
 		return false;
 	}
-
-	fCarga.getline(tam, 4);
-
-	anchura = (int)tam[0] - 48;
-	altura = (int)tam[1] - 48;
-	dificultad = (int)tam[2] - 48;
-
 	fCarga.close();
 	return true;
 }
+
 void cargar(int anchura, int altura, float*  tablero, char* fichero)
 {
-	char* array = (char*)malloc(anchura*altura + 1 + 3);
+	int aux;
+	char* array = (char*)malloc(anchura*altura + 1);
 	std::ifstream fCarga(fichero);
-	fCarga.getline(array, (anchura*altura + 1 + 3));
+	fCarga.getline(array, anchura*altura + 1);
+
 	for (int i = 0; i < anchura*altura; i++)
 	{
-		tablero[i] = array[i + 3] - 48;
+		aux = (array[i] - 48);
+		tablero[i] = (float)aux;
 	}
 	free(array);
 	fCarga.close();
+
 }
 
 void guardado(float* tablero, int anchura, int altura, int dificultad, char* fichero)
 {
 	//Sistema de guardado
+	
+	std::ofstream ficheroAnchura;
+	ficheroAnchura.open("Anchura.txt");
+	ficheroAnchura.clear();
+	ficheroAnchura << anchura;
+	ficheroAnchura.close();
+	std::ofstream ficheroAltura;
+	ficheroAltura.open("Altura.txt");
+	ficheroAltura.clear();
+	ficheroAltura << altura;
+	ficheroAltura.close();
+	std::ofstream ficheroDificultad;
+	ficheroDificultad.open("Dificultad.txt");
+	ficheroDificultad.clear();
+	ficheroDificultad << dificultad;
+	ficheroDificultad.close();
+
 	std::ofstream ficheroGuardado;
 	ficheroGuardado.open(fichero);
 	ficheroGuardado.clear();
-	/* Almacenar anchura y altura*/
-	ficheroGuardado << anchura;
-	ficheroGuardado << altura;
-	ficheroGuardado << dificultad;
-	/* Almacenar Resto */
+
 	for (int index = 0; index < anchura*altura; index++)
 	{
 		ficheroGuardado << tablero[index];
 	}
 	ficheroGuardado.close();
+	
 }
 /* Funcion que elimina una fila */
 __global__ void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila, curandState* globalState) {
 
 	int tFila = threadIdx.y;
 	int tColumna = threadIdx.x;
-	float aux;
 
 	if ((tFila + fila) < altura)
 	{
@@ -476,10 +503,8 @@ __global__ void bombaFila(float* tablero, int anchura, int altura, int dificulta
 			{
 				tablero[(tFila + fila)*anchura + tColumna] = generarJewelCUDA(globalState, (tFila * 3 + tColumna), dificultad);
 			}
-			else {
-				aux = tablero[(tFila + fila + 1)*anchura + tColumna];
-				tablero[(tFila + fila)*anchura + tColumna] = aux;
-
+			else { 
+				tablero[(tFila + fila)*anchura + tColumna] = tablero[(tFila + fila + 1)*anchura + tColumna];
 			}
 		}
 	}
@@ -490,7 +515,6 @@ __global__ void bombaColumna(float* tablero, int anchura, int altura, int dificu
 
 	int tFila = threadIdx.y;
 	int tColumna = threadIdx.x;
-	float aux;
 
 	if (tFila < altura)
 	{
@@ -609,7 +633,7 @@ int main(int argc, char** argv) {
 
 	//Bucle principal del juego
 	while (jugando) {
-
+		
 		printTablero(tablero, anchura, altura);
 
 		int jewel1_x = 0;
@@ -636,8 +660,6 @@ int main(int argc, char** argv) {
 		}
 				/* Intercambio de jewel */
 		case 1: {
-
-			//cudaMemcpy(tablero, tablero_d, size * sizeof(float), cudaMemcpyDeviceToHost);
 			if (seleccion == 2)
 			{
 				std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
@@ -701,17 +723,14 @@ int main(int argc, char** argv) {
 					}
 				}
 				/* Intercambiar posiciones */
-				printf("manual");
 				intercambiarPosiciones(tablero, jewel1_x, jewel1_y, direccion, anchura, altura, seleccion, dificultad, devStates);
 
 			}
 			else if (seleccion == 1)
 			{
 				/* Analisis automatico */
-				printf("auto");
 				analisisTableroAutomatico(dificultad, tablero, anchura, altura, devStates);
 			}
-			//cudaMemcpy(tablero_d, tablero, size * sizeof(float), cudaMemcpyDeviceToHost);
 			break;
 		}
 				/* Guardar Partida */
@@ -725,14 +744,20 @@ int main(int argc, char** argv) {
 		case 3: {
 
 			/* Precarga de tablero */
-			bool encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
-
+			int encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
+			printf("%i\n", anchura);
+			printf("%i\n", altura);
+			size = anchura*altura;
 			if (encontrado)
 			{
-				/* Cargar tablero */
 				free(tablero);
-				tablero = (float*)malloc((anchura*altura) * sizeof(float));
+				cudaFree(tablero_d);
+				tablero = (float*)malloc(size * sizeof(float));
+				cudaMalloc((void**)&tablero_d, size * sizeof(float));
+				/* Cargar tablero */
 				cargar(anchura, altura, tablero, ficheroGuardado);
+				std::cout << "Automatico?   1.-SI   2.-NO\n";
+				std::cin >> seleccion;
 				std::cout << "Se ha cargado el Tablero: \n";
 			}
 			else {

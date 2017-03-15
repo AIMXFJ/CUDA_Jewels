@@ -483,53 +483,93 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 
 bool precargar(int& anchura, int& altura, int& dificultad, char* fichero)
 {
+	std::ifstream fAnchura("anchura.txt");
+	std::ifstream fAltura("altura.txt");
+	std::ifstream fDificultad("dificultad.txt");
 	std::ifstream fCarga(fichero);
-	char tam[4];
+
+	if (!fAnchura.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
+	if (!fAltura.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
+	if (!fDificultad.is_open())
+	{
+		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
+		return false;
+	}
 	if (!fCarga.is_open())
 	{
 		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
 		return false;
 	}
+	fAnchura >> anchura;
+	fAltura >> altura;
+	fDificultad >> dificultad;
 
-	fCarga.getline(tam, 4);
-
-	anchura = (int)tam[0] - 48;
-	altura = (int)tam[1] - 48;
-	dificultad = (int)tam[2] - 48;
-
+	fAnchura.close();
+	fAltura.close();
+	fDificultad.close();
 	fCarga.close();
 	return true;
 }
+
 void cargar(int anchura, int altura, float*  tablero, char* fichero)
 {
-	char* array = (char*)malloc(anchura*altura + 1 + 3);
+	int aux;
+	char* array = (char*)malloc(anchura*altura + 1);
 	std::ifstream fCarga(fichero);
-	fCarga.getline(array, (anchura*altura + 1 + 3));
+	fCarga.getline(array, anchura*altura + 1);
+
 	for (int i = 0; i < anchura*altura; i++)
 	{
-		tablero[i] = array[i + 3] - 48;
+		aux = (array[i] - 48);
+		tablero[i] = (float)aux;
 	}
 	free(array);
 	fCarga.close();
+
 }
 
 void guardado(float* tablero, int anchura, int altura, int dificultad, char* fichero)
 {
 	//Sistema de guardado
 	std::ofstream ficheroGuardado;
+	std::ofstream ficheroAnchura;
+	std::ofstream ficheroAltura;
+	std::ofstream ficheroDificultad;
+	/* Abrirlos */
 	ficheroGuardado.open(fichero);
+	ficheroAnchura.open("Anchura.txt");
+	ficheroAltura.open("Altura.txt");
+	ficheroDificultad.open("Dificultad.txt");
+
+	/* Limpiar el contenido */
 	ficheroGuardado.clear();
+	ficheroAnchura.clear();
+	ficheroAltura.clear();
+	ficheroDificultad.clear();
+
 	/* Almacenar anchura y altura*/
-	ficheroGuardado << anchura;
-	ficheroGuardado << altura;
-	ficheroGuardado << dificultad;
+	ficheroAnchura << anchura;
+	ficheroAltura << altura;
+	ficheroDificultad << dificultad;
 	/* Almacenar Resto */
 	for (int index = 0; index < anchura*altura; index++)
 	{
 		ficheroGuardado << tablero[index];
 	}
 	ficheroGuardado.close();
+	ficheroAnchura.close();
+	ficheroAltura.close();
+	ficheroDificultad.close();
 }
+
 /* Funcion que elimina una fila */
 __global__ void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila, int TILE_WIDTH, curandState* globalState) {
 
@@ -692,7 +732,7 @@ int main(int argc, char** argv) {
 
 	//Bucle principal del juego
 	while (jugando) {
-
+		printf("%i", size);
 		printTablero(tablero, anchura, altura);
 
 		int jewel1_x = 0;
@@ -719,8 +759,7 @@ int main(int argc, char** argv) {
 		}
 		/* Intercambio de jewel */
 		case 1: {
-			
-			cudaMemcpy(tablero, tablero_d, size * sizeof(float), cudaMemcpyDeviceToHost);
+			printf("%i", seleccion);
 			if (seleccion == 2)
 			{
 				std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
@@ -792,7 +831,6 @@ int main(int argc, char** argv) {
 				/* Analisis automatico */
 				analisisTableroAutomatico(dificultad, tablero, anchura, altura, TILE_WIDTH, devStates);
 			}
-			cudaMemcpy(tablero_d, tablero, size * sizeof(float), cudaMemcpyDeviceToHost);
 			break;
 		}
 		/* Guardar Partida */
@@ -806,12 +844,18 @@ int main(int argc, char** argv) {
 		case 3: {
 
 			/* Precarga de tablero */
-			bool encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
-
+			int encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
+			size = anchura*altura;
 			if (encontrado)
 			{
+				free(tablero);
+				cudaFree(tablero_d);
+				tablero = (float*)malloc(size * sizeof(float));
+				cudaMalloc((void**)&tablero_d, size * sizeof(float));
 				/* Cargar tablero */
 				cargar(anchura, altura, tablero, ficheroGuardado);
+				std::cout << "Automatico?   1.-SI   2.-NO\n";
+				std::cin >> seleccion;
 				std::cout << "Se ha cargado el Tablero: \n";
 			}
 			else {

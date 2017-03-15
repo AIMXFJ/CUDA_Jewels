@@ -421,37 +421,38 @@ void analisisTableroAutomatico(int dificultad, float* tablero, int anchura, int 
 bool precargar(int& anchura, int& altura, int& dificultad, char* fichero)
 {
 	std::ifstream fAnchura("anchura.txt");
-	std::ifstream fAltura("altura.txt");
-	std::ifstream fDificultad("dificultad.txt");
-	std::ifstream fCarga(fichero);
-
 	if (!fAnchura.is_open())
 	{
 		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
 		return false;
 	}
+	fAnchura >> anchura;
+	fAnchura.close();
+
+	std::ifstream fAltura("altura.txt");
+
 	if (!fAltura.is_open())
 	{
 		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
 		return false;
 	}
+	fAltura >> altura;
+	fAltura.close();
+	std::ifstream fDificultad("dificultad.txt");
+
 	if (!fDificultad.is_open())
 	{
 		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
 		return false;
 	}
+	fDificultad >> dificultad;
+	fDificultad.close();
+	std::ifstream fCarga(fichero);
 	if (!fCarga.is_open())
 	{
 		std::cout << "ERROR: no existe un archivo guardado." << std::endl;
 		return false;
 	}
-	fAnchura >> anchura;
-	fAltura >> altura;
-	fDificultad >> dificultad;
-
-	fAnchura.close();
-	fAltura.close();
-	fDificultad.close();
 	fCarga.close();
 	return true;
 }
@@ -470,41 +471,39 @@ void cargar(int anchura, int altura, float*  tablero, char* fichero)
 	}
 	free(array);
 	fCarga.close();
-	
+
 }
 
 void guardado(float* tablero, int anchura, int altura, int dificultad, char* fichero)
 {
 	//Sistema de guardado
-	std::ofstream ficheroGuardado;
+
 	std::ofstream ficheroAnchura;
-	std::ofstream ficheroAltura;
-	std::ofstream ficheroDificultad;
-	/* Abrirlos */
-	ficheroGuardado.open(fichero);
 	ficheroAnchura.open("Anchura.txt");
-	ficheroAltura.open("Altura.txt");
-	ficheroDificultad.open("Dificultad.txt");
-
-	/* Limpiar el contenido */
-	ficheroGuardado.clear();
 	ficheroAnchura.clear();
-	ficheroAltura.clear();
-	ficheroDificultad.clear();
-
-	/* Almacenar anchura y altura*/
 	ficheroAnchura << anchura;
+	ficheroAnchura.close();
+	std::ofstream ficheroAltura;
+	ficheroAltura.open("Altura.txt");
+	ficheroAltura.clear();
 	ficheroAltura << altura;
+	ficheroAltura.close();
+	std::ofstream ficheroDificultad;
+	ficheroDificultad.open("Dificultad.txt");
+	ficheroDificultad.clear();
 	ficheroDificultad << dificultad;
-	/* Almacenar Resto */
+	ficheroDificultad.close();
+
+	std::ofstream ficheroGuardado;
+	ficheroGuardado.open(fichero);
+	ficheroGuardado.clear();
+
 	for (int index = 0; index < anchura*altura; index++)
 	{
 		ficheroGuardado << tablero[index];
 	}
 	ficheroGuardado.close();
-	ficheroAnchura.close();
-	ficheroAltura.close();
-	ficheroDificultad.close();
+
 }
 
 void bombaFila(float* tablero, int anchura, int altura, int dificultad, int fila) {
@@ -725,13 +724,14 @@ int main(int argc, char** argv) {
 		case 3: {
 
 			/* Precarga de tablero */
-			encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
-
+			int encontrado = precargar(anchura, altura, dificultad, ficheroGuardado);
+			size = anchura*altura;
 			if (encontrado)
 			{
-				/* Cargar tablero */
 				free(tablero);
-				tablero = (float*)malloc((anchura*altura) * sizeof(float));
+				tablero = (float*)malloc(size * sizeof(float));
+
+				/* Cargar tablero */
 				cargar(anchura, altura, tablero, ficheroGuardado);
 				std::cout << "Automatico?   1.-SI   2.-NO\n";
 				std::cin >> seleccion;
@@ -741,6 +741,8 @@ int main(int argc, char** argv) {
 				std::cout << "No existe ninguna partida guardada.\n";
 			}
 			break;
+
+
 
 		}
 		case 9: {

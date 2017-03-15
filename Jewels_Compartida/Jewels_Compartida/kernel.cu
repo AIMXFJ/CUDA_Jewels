@@ -128,38 +128,38 @@ __global__ void eliminarJewelsKernel(float* tablero_d, float* tablero_aux_d, flo
 	//Posicion real dentro del tablero
 	tx += block_x * TILE_WIDTH;
 	ty += block_y * TILE_WIDTH;
-	
-	//Array dinamico en memoria compartida, velocidad de acceso mucho mayor que con global
-	
-	extern __shared__ float tablero_shared[];
-	
-	//Entre todos los hilos, los cuales ponen su posicion en el auxiliar compartido, rellenan por completo el auxiliar
-	tablero_shared[tx + ty*anchura] = tablero_aux_d[tx + ty*anchura];
-	
-	//Esperan a que todos los hilos pongan su jewel, creando un tablero auxiliar completo en compartida.
-	__syncthreads();
-	
+
 	if (jewels_eliminadas_d[0] != jewels_eliminadas_d[2] && tx >= jewels_eliminadas_d[0] && tx <= jewels_eliminadas_d[final - 2] && ty >= jewels_eliminadas_d[1]) {
 		if (ty + 1 < altura) {
-			float value = tablero_shared[tx + (ty + 1)*anchura];
+
+			float value = tablero_aux_d[tx + (ty + 1)*anchura];
 
 			tablero_d[tx + (ty)*(anchura)] = value;
+
 		}
 		else {
+
 			tablero_d[tx + ty*anchura] = generarJewelCUDA(globalState, tx + ty*anchura, dificultad);
+
 		}
 	}
 	else {
+
 		if (ty < altura && tx == jewels_eliminadas_d[0] && ty > jewels_eliminadas_d[1]) {
-			float value = tablero_shared[tx + (ty)*anchura];
+
+			float value = tablero_aux_d[tx + (ty)*anchura];
+
 			tablero_d[tx + (ty - final / 2)*(anchura)] = value;
+
 		}
+
 		if (ty >= altura - final / 2 && ty < altura && tx == jewels_eliminadas_d[0]) {
+
 			tablero_d[tx + (ty)*anchura] = generarJewelCUDA(globalState, tx + ty*anchura, dificultad);
+
 		}
 	}
 }
-
 /*Funcion que prepara y llama el kernel con su mismo nombre, genera todos los datos necesarios*/
 void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, int anchura, int altura, int TILE_WIDTH, curandState* globalState) {
 	float *tablero_d;
@@ -208,7 +208,7 @@ void eliminarJewels(float* tablero, float* jewels_eliminadas, int dificultad, in
 	//Configuracion de ejecucion
 	dim3 dimBlock(TILE_WIDTH, TILE_WIDTH);
 	dim3 dimGrid(anch, alt);
-	eliminarJewelsKernel << <dimGrid, dimBlock, 2*anchura * altura * sizeof(float)>> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final, TILE_WIDTH, globalState);
+	eliminarJewelsKernel << <dimGrid, dimBlock>> > (tablero_d, tablero_aux_d, jewels_eliminadas_d, dificultad, anchura, altura, final, TILE_WIDTH, globalState);
 
 	//Se recupera el tablero actualizado
 	cudaMemcpy(tablero, tablero_d, size, cudaMemcpyDeviceToHost);
@@ -733,8 +733,6 @@ int main(int argc, char** argv) {
 		}
 				/* Intercambio de jewel */
 		case 1: {
-
-			cudaMemcpy(tablero, tablero_d, size * sizeof(float), cudaMemcpyDeviceToHost);
 			if (seleccion == 2)
 			{
 				std::cout << "Posicion de la primera jewel a intercambiar (empiezan en 0)\n";
@@ -806,7 +804,6 @@ int main(int argc, char** argv) {
 				/* Analisis automatico */
 				analisisTableroAutomatico(dificultad, tablero, anchura, altura, TILE_WIDTH, devStates);
 			}
-			cudaMemcpy(tablero_d, tablero, size * sizeof(float), cudaMemcpyDeviceToHost);
 			break;
 		}
 				/* Guardar Partida */
